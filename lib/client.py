@@ -33,7 +33,7 @@ ApiParams = namedtuple('ApiParams', 'vault_url vault_token secrets_path')
 
 
 class AuthMethods(Enum):
-    APP_ROLE = 'app-role'
+    APP_ROLE = 'approle'
 
 
 class VaultException(Exception):
