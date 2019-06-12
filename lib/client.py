@@ -133,8 +133,11 @@ def _extract_data_from_endpoint(endpoint_url, data_path, token, method, data=Non
     headers = {'X-Vault-Token': token}
     logger.debug('Sending http request to Hashicorp Vault, endpoint_url="{}", method="{}"'
                  .format(endpoint_url, method))
-    response = requests.get(endpoint_url, headers=headers) if method == 'get' \
-        else requests.post(endpoint_url, headers=headers, data=data)
+    try:
+        response = requests.get(endpoint_url, headers=headers) if method == 'get' \
+            else requests.post(endpoint_url, headers=headers, data=data)
+    except requests.exceptions.ConnectionError as exc:
+        raise VaultException('Connection error: {}'.format(exc))
     if response.ok:
         logger.debug('Got correct response from Hashicorp Vault')
         return reduce(dict.get, data_path.split('.'), json.loads(response.text))
