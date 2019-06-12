@@ -125,7 +125,7 @@ class AppRoleAuthenticator(Authenticator):
                                                    data_path='auth.client_token',
                                                    token=self._vault_token,
                                                    method='post',
-                                                   data={'role-id': role_id, 'secret-id': secret_id})
+                                                   data={'role_id': role_id, 'secret_id': secret_id})
         return client_token
 
 

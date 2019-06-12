@@ -174,7 +174,7 @@ def test_get_secret_by_key(get_mock, post_mock):
     expected_calls_to_post = [
         call(SECRET_ID_ENDPOINT, headers=expected_headers, data=None),
         call(LOGIN_ENDPOINT, headers=expected_headers,
-             data={'role-id': ROLE_ID, 'secret-id': SECRET_ID})
+             data={'role_id': ROLE_ID, 'secret_id': SECRET_ID})
     ]
 
     client = Client(API_PARAMS, AppRoleAuthenticator(API_PARAMS, ROLE))
