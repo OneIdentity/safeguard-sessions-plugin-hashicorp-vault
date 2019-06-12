@@ -38,7 +38,7 @@ URL = 'http://{}:{}'.format(ADDRESS, PORT)
 ROLE = 'test-role'
 SECRET_KEY = 'key'
 SECRET = 'secret'
-SECRETS_PATH = '/kv/secret'
+SECRETS_PATH = 'kv/secret'
 ROLE_ID = '9eef5cf1-19d3-0cfb-b9bb-8b6248a17ece'
 SECRET_ID = '570bb5c9-2083-242d-5ba0-71224c1d4c48'
 CLIENT_TOKEN = 's.menL5xntpcw7RY2fMGDVU4Bo'
@@ -48,7 +48,7 @@ API_PARAMS = ApiParams(vault_url=URL, secrets_path=SECRETS_PATH, vault_token=VAU
 ROLE_ID_ENDPOINT = URL + '/v1/auth/approle/role/' + ROLE + '/role-id'
 SECRET_ID_ENDPOINT = URL + '/v1/auth/approle/role/' + ROLE + '/secret-id'
 LOGIN_ENDPOINT = URL + '/v1/auth/approle/login'
-SECRETS_ENDPOINT = URL + '/v1' + SECRETS_PATH
+SECRETS_ENDPOINT = URL + '/v1/' + SECRETS_PATH
 
 POST_RESPONSES = [
     Response(text=json.dumps({

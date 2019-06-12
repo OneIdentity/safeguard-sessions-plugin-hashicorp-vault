@@ -91,7 +91,7 @@ class Client(object):
 
     def get_secret(self, key):
         client_token = self._authenticator.authenticate()
-        secret = _extract_data_from_endpoint(endpoint_url=self._vault_url + '/v1' + self._secrets_path,
+        secret = _extract_data_from_endpoint(endpoint_url=self._vault_url + '/v1/' + self._secrets_path,
                                              data_path='data.' + key,
                                              token=client_token,
                                              method='get')
