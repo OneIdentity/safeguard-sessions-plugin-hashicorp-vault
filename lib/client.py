@@ -139,7 +139,7 @@ def _extract_data_from_endpoint(endpoint_url, data_path, token, method, data=Non
     except requests.exceptions.ConnectionError as exc:
         raise VaultException('Connection error: {}'.format(exc))
     if response.ok:
-        logger.debug('Got correct response from Hashicorp Vault')
+        logger.debug('Got correct response from endpoint: {}'.format(endpoint_url))
         return reduce(dict.get, data_path.split('.'), json.loads(response.text))
     else:
         raise VaultException('Received error from Hashicorp Vault: {}'
