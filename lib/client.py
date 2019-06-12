@@ -135,7 +135,7 @@ def _extract_data_from_endpoint(endpoint_url, data_path, token, method, data=Non
                  .format(endpoint_url, method))
     try:
         response = requests.get(endpoint_url, headers=headers) if method == 'get' \
-            else requests.post(endpoint_url, headers=headers, data=data)
+            else requests.post(endpoint_url, headers=headers, data=json.dumps(data) if data else None)
     except requests.exceptions.ConnectionError as exc:
         raise VaultException('Connection error: {}'.format(exc))
     if response.ok:
