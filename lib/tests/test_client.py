@@ -52,18 +52,6 @@ SECRETS_ENDPOINT = URL + '/v1' + SECRETS_PATH
 
 POST_RESPONSES = [
     Response(text=json.dumps({
-        'request_id': '39dcab3e-6890-fbf4-460b-d3f1f49df2b3',
-        'lease_id': '',
-        'renewable': False,
-        'lease_duration': 0,
-        'data': {
-          'role_id': ROLE_ID
-        },
-        'wrap_info': None,
-        'warnings': None,
-        'auth': None
-    }), ok=True),
-    Response(text=json.dumps({
         'request_id': '5dff16d1-6faa-9a3d-c1d7-0cfe4528701b',
         'lease_id': '',
         'renewable': False,
@@ -109,18 +97,32 @@ POST_RESPONSES = [
     }), ok=True),
 ]
 
-GET_RESPONSE = Response(text=json.dumps({
-    'request_id': '969945d0-e8b2-f154-8ca9-9ebca3c25b1e',
-    'lease_id': '',
-    'renewable': False,
-    'lease_duration': 2764800,
-    'data': {
-        SECRET_KEY: SECRET
-    },
-    'wrap_info': None,
-    'warnings': None,
-    'auth': None
-}), ok=True)
+GET_RESPONSES = [
+    Response(text=json.dumps({
+        'request_id': '39dcab3e-6890-fbf4-460b-d3f1f49df2b3',
+        'lease_id': '',
+        'renewable': False,
+        'lease_duration': 0,
+        'data': {
+            'role_id': ROLE_ID
+        },
+        'wrap_info': None,
+        'warnings': None,
+        'auth': None
+    }), ok=True),
+    Response(text=json.dumps({
+        'request_id': '969945d0-e8b2-f154-8ca9-9ebca3c25b1e',
+        'lease_id': '',
+        'renewable': False,
+        'lease_duration': 2764800,
+        'data': {
+            SECRET_KEY: SECRET
+        },
+        'wrap_info': None,
+        'warnings': None,
+        'auth': None
+    }), ok=True)
+]
 
 ERROR_RESPONSE = Response(text=json.dumps({
     'errors': ['This is a generic error']
@@ -162,11 +164,14 @@ def test_client_factory_can_be_instantiated_with_config(mocker):
 
 
 @patch('requests.post', side_effect=POST_RESPONSES)
-@patch('requests.get', return_value=GET_RESPONSE)
+@patch('requests.get', side_effect=GET_RESPONSES)
 def test_get_secret_by_key(get_mock, post_mock):
     expected_headers = {'X-Vault-Token': VAULT_TOKEN}
+    expected_calls_to_get = [
+        call(ROLE_ID_ENDPOINT, headers=expected_headers),
+        call(SECRETS_ENDPOINT, headers={'X-Vault-Token': CLIENT_TOKEN})
+    ]
     expected_calls_to_post = [
-        call(ROLE_ID_ENDPOINT, headers=expected_headers, data=None),
         call(SECRET_ID_ENDPOINT, headers=expected_headers, data=None),
         call(LOGIN_ENDPOINT, headers=expected_headers,
              data={'role-id': ROLE_ID, 'secret-id': SECRET_ID})
@@ -176,12 +181,12 @@ def test_get_secret_by_key(get_mock, post_mock):
     secret = client.get_secret(key=SECRET_KEY)
 
     assert secret == SECRET
+    get_mock.assert_has_calls(calls=expected_calls_to_get, any_order=False)
     post_mock.assert_has_calls(calls=expected_calls_to_post, any_order=False)
-    get_mock.assert_called_with(SECRETS_ENDPOINT, headers={'X-Vault-Token': CLIENT_TOKEN})
 
 
 @patch('requests.post', side_effect=POST_RESPONSES)
-@patch('requests.get', return_value=ERROR_RESPONSE)
+@patch('requests.get', side_effect=[GET_RESPONSES[0], ERROR_RESPONSE])
 def test_error_occurs_when_getting_secret(_get_mock, _post_mock):
     client = Client(API_PARAMS, AppRoleAuthenticator(API_PARAMS, ROLE))
     with raises(VaultException):

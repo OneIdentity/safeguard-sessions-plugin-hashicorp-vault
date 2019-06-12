@@ -116,7 +116,7 @@ class AppRoleAuthenticator(Authenticator):
         role_id = _extract_data_from_endpoint(endpoint_url=self._vault_url + '/v1/auth/approle/role/' + self._role + '/role-id',
                                               data_path='data.role_id',
                                               token=self._vault_token,
-                                              method='post')
+                                              method='get')
         secret_id = _extract_data_from_endpoint(endpoint_url=self._vault_url + '/v1/auth/approle/role/' + self._role + '/secret-id',
                                                 data_path='data.secret_id',
                                                 token=self._vault_token,
