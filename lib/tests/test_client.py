@@ -52,17 +52,17 @@ SECRETS_ENDPOINT = URL + '/v1' + SECRETS_PATH
 
 POST_RESPONSES = [
     Response(text=json.dumps({
-            'request_id': '39dcab3e-6890-fbf4-460b-d3f1f49df2b3',
-            'lease_id': '',
-            'renewable': False,
-            'lease_duration': 0,
-            'data': {
-              'role_id': ROLE_ID
-            },
-            'wrap_info': None,
-            'warnings': None,
-            'auth': None
-        }), ok=True),
+        'request_id': '39dcab3e-6890-fbf4-460b-d3f1f49df2b3',
+        'lease_id': '',
+        'renewable': False,
+        'lease_duration': 0,
+        'data': {
+          'role_id': ROLE_ID
+        },
+        'wrap_info': None,
+        'warnings': None,
+        'auth': None
+    }), ok=True),
     Response(text=json.dumps({
         'request_id': '5dff16d1-6faa-9a3d-c1d7-0cfe4528701b',
         'lease_id': '',
