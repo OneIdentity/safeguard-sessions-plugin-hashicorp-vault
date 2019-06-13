@@ -32,11 +32,11 @@ def test_do_get_password_list(client):
         [hashicorp_vault]
         address = test.vault
         port = 8200
-        token = test_token
         auth_method = approle
 
         [hashicorp_vault_approle_authentication]
         role = testrole
+        vault_token = test_token
 
         [hashicorp_vault_secrets_engine_kv_v1]
         secrets_path = kv/users

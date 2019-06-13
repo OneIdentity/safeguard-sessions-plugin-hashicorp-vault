@@ -144,15 +144,15 @@ def test_client_factory_can_be_instantiated_with_config(mocker):
         [hashicorp_vault]
         address = {}
         port = {}
-        token = {}
         auth_method = {}
 
         [hashicorp_vault_approle_authentication]
         role = {}
+        vault_token = {}
 
         [hashicorp_vault_secrets_engine_kv_v1]
         secrets_path = {}
-    '''.format(ADDRESS, PORT, VAULT_TOKEN, AUTH_METHOD, ROLE, SECRETS_PATH)))
+    '''.format(ADDRESS, PORT, AUTH_METHOD, ROLE, VAULT_TOKEN, SECRETS_PATH)))
     mocker.spy(ClientFactory, '__init__')
     client_factory = ClientFactory.from_config(config)
     client_factory.__init__.assert_called_with(
