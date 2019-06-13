@@ -33,11 +33,13 @@ def test_do_get_password_list(client):
         address = test.vault
         port = 8200
         token = test_token
-        secrets_path = /kv/users
         auth_method = approle
 
         [hashicorp_vault_approle_authentication]
         role = testrole
+
+        [hashicorp_vault_secrets_engine_kv_v1]
+        secrets_path = kv/users
     ''')
     plugin = Plugin(config)
     username = 'wsmith'

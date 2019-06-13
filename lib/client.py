@@ -74,7 +74,7 @@ class ClientFactory(object):
                 config.getint('hashicorp_vault', 'port', default=8200),
             ),
             vault_token=config.get('hashicorp_vault', 'token'),
-            secrets_path=config.get('hashicorp_vault', 'secrets_path'),
+            secrets_path=config.get('hashicorp_vault_secrets_engine_kv_v1', 'secrets_path'),
             auth_method=auth_method,
             auth_params=auth_params
         )
