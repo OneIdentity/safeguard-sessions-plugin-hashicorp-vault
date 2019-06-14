@@ -1,0 +1,6 @@
+api: 1.2
+type: credentialstore
+name: SPS_hashicorp
+description: One Identity Safeguard for Privileged Hashicorp Vault plugin
+version: 1.0.0
+entry_point: main.py
