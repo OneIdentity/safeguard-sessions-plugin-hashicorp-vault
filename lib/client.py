@@ -20,15 +20,12 @@
 # IN THE SOFTWARE.
 #
 from functools import reduce
-from collections import namedtuple
 import logging
 import requests
 import json
 import abc
 
 logger = logging.getLogger(__name__)
-
-ApiParams = namedtuple('ApiParams', 'vault_url vault_token secrets_path')
 
 
 class VaultException(Exception):
@@ -37,48 +34,67 @@ class VaultException(Exception):
 
 class ClientFactory(object):
 
-    def __init__(self, vault_url, vault_token, secrets_path, auth_params):
-        self._vault_url = vault_url
-        self._vault_token = vault_token
-        self._secrets_path = secrets_path
-        self._auth_params = auth_params
+    def __init__(self, authenticator, secret_retriever):
+        self._authenticator = authenticator
+        self._secret_retriever = secret_retriever
+
+    @property
+    def authenticator(self):
+        return self._authenticator
+
+    @property
+    def secret_retriever(self):
+        return self._secret_retriever
 
     def instantiate(self):
-        api_params = ApiParams(vault_url=self._vault_url,
-                               secrets_path=self._secrets_path,
-                               vault_token=self._vault_token)
-        role = self._auth_params.get('role')
-        if role:
-            authenticator = AppRoleAuthenticator(api_params, role)
-        else:
-            raise VaultException('No valid auth method can be determined based on config')
-        return Client(api_params, authenticator)
+        return Client(self._authenticator, self._secret_retriever)
 
     @classmethod
     def from_config(cls, config):
-        auth_params = dict(role=config.get('hashicorp_vault_approle_authentication', 'role'))
-        return ClientFactory(
-            vault_url='http://{}:{}'.format(
-                config.get('hashicorp_vault', 'address'),
-                config.getint('hashicorp_vault', 'port', default=8200),
-            ),
-            vault_token=config.get('hashicorp_vault_approle_authentication', 'vault_token'),
-            secrets_path=config.get('hashicorp_vault_secrets_engine_kv_v1', 'secrets_path'),
-            auth_params=auth_params
-        )
+        vault_url = 'http://{}:{}'.format(config.get('hashicorp_vault', 'address', required=True),
+                                          config.getint('hashicorp_vault', 'port', default=8200))
+        role = config.get('hashicorp_vault_approle_authentication', 'role')
+        if role:
+            vault_token = config.get('hashicorp_vault_approle_authentication', 'vault_token')
+            authenticator = AppRoleAuthenticator(vault_url, role, vault_token)
+        else:
+            raise VaultException('No valid auth method can be determined based on config')
+
+        secrets_path = config.get('hashicorp_vault_secrets_engine_kv_v1', 'secrets_path')
+        if secrets_path:
+            secret_retriever = KVEngineV1SecretRetriever(vault_url, secrets_path)
+        else:
+            raise VaultException('No valid secrets engine can be determined based on config')
+
+        return ClientFactory(authenticator, secret_retriever)
 
 
 class Client(object):
 
-    def __init__(self, api_params, authenticator):
-        self._vault_url = api_params.vault_url
-        self._vault_token = api_params.vault_token
-        self._secrets_path = api_params.secrets_path
+    def __init__(self, authenticator, secret_retriever):
         self._authenticator = authenticator
-        logger.debug('Http client initialized for URL: {}'.format(self._vault_url))
+        self._secret_retriever = secret_retriever
 
     def get_secret(self, key):
         client_token = self._authenticator.authenticate()
+        secret = self._secret_retriever.retrieve_secret(key, client_token)
+        return secret
+
+
+class SecretRetriever(abc.ABC):
+
+    @abc.abstractmethod
+    def retrieve_secret(self, key, client_token):
+        pass
+
+
+class KVEngineV1SecretRetriever(SecretRetriever):
+
+    def __init__(self, vault_url, secrets_path):
+        self._vault_url = vault_url
+        self._secrets_path = secrets_path
+
+    def retrieve_secret(self, key, client_token):
         secret = _extract_data_from_endpoint(endpoint_url=self._vault_url + '/v1/' + self._secrets_path,
                                              data_path='data.' + key,
                                              token=client_token,
@@ -95,9 +111,9 @@ class Authenticator(abc.ABC):
 
 class AppRoleAuthenticator(Authenticator):
 
-    def __init__(self, api_params, role):
-        self._vault_url = api_params.vault_url
-        self._vault_token = api_params.vault_token
+    def __init__(self, vault_url, vault_token, role):
+        self._vault_url = vault_url
+        self._vault_token = vault_token
         self._role = role
 
     def authenticate(self):

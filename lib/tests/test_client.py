@@ -27,7 +27,7 @@ from textwrap import dedent
 
 from safeguard.sessions.plugin.plugin_configuration import PluginConfiguration
 
-from ..client import ClientFactory, Client, VaultException, ApiParams, AppRoleAuthenticator
+from ..client import ClientFactory, Client, VaultException, AppRoleAuthenticator, KVEngineV1SecretRetriever
 
 Response = namedtuple('Response', 'ok text')
 
@@ -42,12 +42,31 @@ ROLE_ID = '9eef5cf1-19d3-0cfb-b9bb-8b6248a17ece'
 SECRET_ID = '570bb5c9-2083-242d-5ba0-71224c1d4c48'
 CLIENT_TOKEN = 's.menL5xntpcw7RY2fMGDVU4Bo'
 VAULT_TOKEN = 's.AjtEPrapWWagEqXFtoNPOpaf'
-API_PARAMS = ApiParams(vault_url=URL, secrets_path=SECRETS_PATH, vault_token=VAULT_TOKEN)
+AUTHENTICATOR = AppRoleAuthenticator(URL, VAULT_TOKEN, ROLE)
+SECRET_RETRIEVER = KVEngineV1SecretRetriever(URL, SECRETS_PATH)
 
 ROLE_ID_ENDPOINT = URL + '/v1/auth/approle/role/' + ROLE + '/role-id'
 SECRET_ID_ENDPOINT = URL + '/v1/auth/approle/role/' + ROLE + '/secret-id'
 LOGIN_ENDPOINT = URL + '/v1/auth/approle/login'
 SECRETS_ENDPOINT = URL + '/v1/' + SECRETS_PATH
+
+HASHICORP_VAULT_CONFIG = dedent('''
+    [hashicorp_vault]
+    address = {}
+    port = {}
+'''.format(ADDRESS, PORT))
+
+HASHICORP_VAULT_APPROLE_AUTH_CONFIG = dedent('''
+    [hashicorp_vault_approle_authentication]
+    role = {}
+    vault_token = {}
+'''.format(ROLE, VAULT_TOKEN))
+
+HASHICORP_VAULT_KV_V1_CONFIG = dedent('''
+    [hashicorp_vault_secrets_engine_kv_v1]
+    secrets_path = {}
+'''.format(SECRETS_PATH))
+
 
 POST_RESPONSES = [
     Response(text=json.dumps({
@@ -128,38 +147,40 @@ ERROR_RESPONSE = Response(text=json.dumps({
 }), ok=False)
 
 
-def test_client_factory_raises_exception_if_auth_method_cannot_be_determined():
-    with raises(VaultException):
-        ClientFactory(URL, VAULT_TOKEN, SECRETS_ENDPOINT, dict()).instantiate()
-
-
-def test_client_factory_instantiates_app_role_client():
-    client_factory = ClientFactory(URL, VAULT_TOKEN, SECRETS_ENDPOINT, dict(role=ROLE))
+def test_client_factory_instantiates_client():
+    client_factory = ClientFactory(AUTHENTICATOR, SECRET_RETRIEVER)
     assert isinstance(client_factory.instantiate(), Client)
 
 
 def test_client_factory_can_be_instantiated_with_config(mocker):
-    config = PluginConfiguration(dedent('''
-        [hashicorp_vault]
-        address = {}
-        port = {}
-
-        [hashicorp_vault_approle_authentication]
-        role = {}
-        vault_token = {}
-
-        [hashicorp_vault_secrets_engine_kv_v1]
-        secrets_path = {}
-    '''.format(ADDRESS, PORT, ROLE, VAULT_TOKEN, SECRETS_PATH)))
+    config = PluginConfiguration(HASHICORP_VAULT_CONFIG +
+                                 HASHICORP_VAULT_APPROLE_AUTH_CONFIG +
+                                 HASHICORP_VAULT_KV_V1_CONFIG)
     mocker.spy(ClientFactory, '__init__')
+    mocker.spy(AppRoleAuthenticator, '__init__')
+    mocker.spy(KVEngineV1SecretRetriever, '__init__')
     client_factory = ClientFactory.from_config(config)
     client_factory.__init__.assert_called_with(
         client_factory,
-        vault_url=URL,
-        vault_token=VAULT_TOKEN,
-        secrets_path=SECRETS_PATH,
-        auth_params={'role': ROLE}
+        client_factory.authenticator,
+        client_factory.secret_retriever
     )
+    client_factory.authenticator.__init__.assert_called_with(client_factory.authenticator, URL, ROLE, VAULT_TOKEN)
+    client_factory.secret_retriever.__init__.assert_called_with(client_factory.secret_retriever, URL, SECRETS_PATH)
+
+
+def test_client_factory_raises_exception_if_auth_method_cannot_be_determined():
+    config = PluginConfiguration(HASHICORP_VAULT_CONFIG +
+                                 HASHICORP_VAULT_KV_V1_CONFIG)
+    with raises(VaultException):
+        ClientFactory.from_config(config)
+
+
+def test_client_factory_raises_exception_if_secrets_engine_cannot_be_determined():
+    config = PluginConfiguration(HASHICORP_VAULT_CONFIG +
+                                 HASHICORP_VAULT_APPROLE_AUTH_CONFIG)
+    with raises(VaultException):
+        ClientFactory.from_config(config)
 
 
 @patch('requests.post', side_effect=POST_RESPONSES)
@@ -176,7 +197,7 @@ def test_get_secret_by_key(get_mock, post_mock):
              data=json.dumps({'role_id': ROLE_ID, 'secret_id': SECRET_ID}))
     ]
 
-    client = Client(API_PARAMS, AppRoleAuthenticator(API_PARAMS, ROLE))
+    client = Client(AUTHENTICATOR, SECRET_RETRIEVER)
     secret = client.get_secret(key=SECRET_KEY)
 
     assert secret == SECRET
@@ -187,6 +208,6 @@ def test_get_secret_by_key(get_mock, post_mock):
 @patch('requests.post', side_effect=POST_RESPONSES)
 @patch('requests.get', side_effect=[GET_RESPONSES[0], ERROR_RESPONSE])
 def test_error_occurs_when_getting_secret(_get_mock, _post_mock):
-    client = Client(API_PARAMS, AppRoleAuthenticator(API_PARAMS, ROLE))
+    client = Client(AUTHENTICATOR, SECRET_RETRIEVER)
     with raises(VaultException):
         client.get_secret(key=SECRET_KEY)
