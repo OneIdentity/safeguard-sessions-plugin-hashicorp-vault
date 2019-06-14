@@ -27,13 +27,12 @@ from textwrap import dedent
 
 from safeguard.sessions.plugin.plugin_configuration import PluginConfiguration
 
-from ..client import ClientFactory, Client, VaultException, ApiParams, AuthMethods, AppRoleAuthenticator
+from ..client import ClientFactory, Client, VaultException, ApiParams, AppRoleAuthenticator
 
 Response = namedtuple('Response', 'ok text')
 
 ADDRESS = 'vault-address'
 PORT = 1337
-AUTH_METHOD = AuthMethods.APP_ROLE.value
 URL = 'http://{}:{}'.format(ADDRESS, PORT)
 ROLE = 'test-role'
 SECRET_KEY = 'key'
@@ -129,13 +128,13 @@ ERROR_RESPONSE = Response(text=json.dumps({
 }), ok=False)
 
 
-def test_client_factory_raises_exception_if_auth_method_not_valid():
+def test_client_factory_raises_exception_if_auth_method_cannot_be_determined():
     with raises(VaultException):
-        ClientFactory(URL, VAULT_TOKEN, SECRETS_ENDPOINT, 'not-valid', None).instantiate()
+        ClientFactory(URL, VAULT_TOKEN, SECRETS_ENDPOINT, dict()).instantiate()
 
 
 def test_client_factory_instantiates_app_role_client():
-    client_factory = ClientFactory(URL, VAULT_TOKEN, SECRETS_ENDPOINT, AUTH_METHOD, dict(role=ROLE))
+    client_factory = ClientFactory(URL, VAULT_TOKEN, SECRETS_ENDPOINT, dict(role=ROLE))
     assert isinstance(client_factory.instantiate(), Client)
 
 
@@ -144,7 +143,6 @@ def test_client_factory_can_be_instantiated_with_config(mocker):
         [hashicorp_vault]
         address = {}
         port = {}
-        auth_method = {}
 
         [hashicorp_vault_approle_authentication]
         role = {}
@@ -152,7 +150,7 @@ def test_client_factory_can_be_instantiated_with_config(mocker):
 
         [hashicorp_vault_secrets_engine_kv_v1]
         secrets_path = {}
-    '''.format(ADDRESS, PORT, AUTH_METHOD, ROLE, VAULT_TOKEN, SECRETS_PATH)))
+    '''.format(ADDRESS, PORT, ROLE, VAULT_TOKEN, SECRETS_PATH)))
     mocker.spy(ClientFactory, '__init__')
     client_factory = ClientFactory.from_config(config)
     client_factory.__init__.assert_called_with(
@@ -160,7 +158,6 @@ def test_client_factory_can_be_instantiated_with_config(mocker):
         vault_url=URL,
         vault_token=VAULT_TOKEN,
         secrets_path=SECRETS_PATH,
-        auth_method=AUTH_METHOD,
         auth_params={'role': ROLE}
     )
 

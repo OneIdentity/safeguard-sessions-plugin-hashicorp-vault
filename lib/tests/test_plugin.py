@@ -32,7 +32,6 @@ def test_do_get_password_list(client):
         [hashicorp_vault]
         address = test.vault
         port = 8200
-        auth_method = approle
 
         [hashicorp_vault_approle_authentication]
         role = testrole

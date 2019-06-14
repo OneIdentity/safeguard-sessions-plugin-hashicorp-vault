@@ -21,7 +21,6 @@
 #
 from functools import reduce
 from collections import namedtuple
-from enum import Enum
 import logging
 import requests
 import json
@@ -32,41 +31,31 @@ logger = logging.getLogger(__name__)
 ApiParams = namedtuple('ApiParams', 'vault_url vault_token secrets_path')
 
 
-class AuthMethods(Enum):
-    APP_ROLE = 'approle'
-
-
 class VaultException(Exception):
     pass
 
 
 class ClientFactory(object):
 
-    def __init__(self, vault_url, vault_token, secrets_path, auth_method, auth_params):
+    def __init__(self, vault_url, vault_token, secrets_path, auth_params):
         self._vault_url = vault_url
         self._vault_token = vault_token
         self._secrets_path = secrets_path
-        self._auth_method = auth_method
         self._auth_params = auth_params
 
     def instantiate(self):
         api_params = ApiParams(vault_url=self._vault_url,
                                secrets_path=self._secrets_path,
                                vault_token=self._vault_token)
-        if self._auth_method == AuthMethods.APP_ROLE.value:
-            role = self._auth_params.get('role')
-            if role:
-                authenticator = AppRoleAuthenticator(api_params, role)
-            else:
-                raise VaultException('Missing "role" parameter for auth method {}'.format(self._auth_method))
+        role = self._auth_params.get('role')
+        if role:
+            authenticator = AppRoleAuthenticator(api_params, role)
         else:
-            raise VaultException('Auth method not valid: {}'.format(self._auth_method))
+            raise VaultException('No valid auth method can be determined based on config')
         return Client(api_params, authenticator)
 
     @classmethod
     def from_config(cls, config):
-        auth_method = config.getienum('hashicorp_vault', 'auth_method', (AuthMethods.APP_ROLE.value,),
-                                      default=AuthMethods.APP_ROLE.value)
         auth_params = dict(role=config.get('hashicorp_vault_approle_authentication', 'role'))
         return ClientFactory(
             vault_url='http://{}:{}'.format(
@@ -75,7 +64,6 @@ class ClientFactory(object):
             ),
             vault_token=config.get('hashicorp_vault_approle_authentication', 'vault_token'),
             secrets_path=config.get('hashicorp_vault_secrets_engine_kv_v1', 'secrets_path'),
-            auth_method=auth_method,
             auth_params=auth_params
         )
 
