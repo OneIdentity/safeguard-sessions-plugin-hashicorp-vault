@@ -33,4 +33,4 @@ class Plugin(CredentialStorePlugin):
 
     def do_get_password_list(self):
         password = self._vault_client.get_secret(self.account)
-        return {'passwords': [password]}
+        return {'passwords': [password] if password else []}

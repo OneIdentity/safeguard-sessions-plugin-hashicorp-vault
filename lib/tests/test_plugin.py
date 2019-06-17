@@ -49,3 +49,13 @@ def test_do_get_password_list(client):
     password_list = plugin.get_password_list(cookie=dict(), session_cookie=dict(), target_username=username)
     client.assert_called_with(username)
     assert password_list == expected_password_list
+
+
+@patch('lib.client.Client.get_secret', return_value=None)
+def test_getting_password_for_unknown_user(client):
+    plugin = Plugin(CONFIG)
+    expected_password_list = dict(cookie=dict(account=None, asset=None),
+                                  passwords=[],
+                                  session_cookie=dict())
+    password_list = plugin.get_password_list(cookie=dict(), session_cookie=dict(), target_username='unknown')
+    assert password_list == expected_password_list
