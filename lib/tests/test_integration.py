@@ -36,3 +36,18 @@ def test_engine_kv_v1(hc_config_engine_kv_v1, hc_account, hc_account_password):
         result,
         {'passwords': [hc_account_password]}
     )
+
+
+def test_engine_kv_v1_wrong_user(hc_config_engine_kv_v1, hc_wrong_account):
+    plugin = Plugin(hc_config_engine_kv_v1)
+
+    result = plugin.get_password_list(
+        cookie={},
+        session_cookie={},
+        target_username=hc_wrong_account,
+    )
+
+    assert_plugin_hook_result(
+        result,
+        {'passwords': []}
+    )
