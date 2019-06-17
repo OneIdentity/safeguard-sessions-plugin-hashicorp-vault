@@ -25,22 +25,23 @@ from unittest.mock import patch
 
 from ..plugin import Plugin
 
+CONFIG = dedent('''
+    [hashicorp_vault]
+    address = test.vault
+    port = 8200
+
+    [hashicorp_vault_approle_authentication]
+    role = testrole
+    vault_token = test_token
+
+    [hashicorp_vault_secrets_engine_kv_v1]
+    secrets_path = kv/users
+''')
+
 
 @patch('lib.client.Client.get_secret', return_value='password')
 def test_do_get_password_list(client):
-    config = dedent('''
-        [hashicorp_vault]
-        address = test.vault
-        port = 8200
-
-        [hashicorp_vault_approle_authentication]
-        role = testrole
-        vault_token = test_token
-
-        [hashicorp_vault_secrets_engine_kv_v1]
-        secrets_path = kv/users
-    ''')
-    plugin = Plugin(config)
+    plugin = Plugin(CONFIG)
     username = 'wsmith'
     expected_password_list = dict(cookie=dict(account=username, asset=None),
                                   passwords=['password'],
