@@ -22,40 +22,43 @@
 
 from textwrap import dedent
 from unittest.mock import patch
+from pytest import fixture
 
 from ..plugin import Plugin
 
-CONFIG = dedent('''
-    [hashicorp_vault]
-    address = test.vault
-    port = 8200
 
-    [hashicorp_vault_approle_authentication]
-    role = testrole
-    vault_token = test_token
+@fixture
+def configured_plugin():
+    config = dedent('''
+        [hashicorp_vault]
+        address = test.vault
+        port = 8200
 
-    [hashicorp_vault_secrets_engine_kv_v1]
-    secrets_path = kv/users
-''')
+        [hashicorp_vault_approle_authentication]
+        role = testrole
+        vault_token = test_token
+
+        [hashicorp_vault_secrets_engine_kv_v1]
+        secrets_path = kv/users
+    ''')
+    return Plugin(config)
 
 
 @patch('lib.client.Client.get_secret', return_value='password')
-def test_do_get_password_list(client):
-    plugin = Plugin(CONFIG)
+def test_do_get_password_list(client, configured_plugin):
     username = 'wsmith'
     expected_password_list = dict(cookie=dict(account=username, asset=None),
                                   passwords=['password'],
                                   session_cookie=dict())
-    password_list = plugin.get_password_list(cookie=dict(), session_cookie=dict(), target_username=username)
+    password_list = configured_plugin.get_password_list(cookie=dict(), session_cookie=dict(), target_username=username)
     client.assert_called_with(username)
     assert password_list == expected_password_list
 
 
 @patch('lib.client.Client.get_secret', return_value=None)
-def test_getting_password_for_unknown_user(client):
-    plugin = Plugin(CONFIG)
+def test_getting_password_for_unknown_user(client, configured_plugin):
     expected_password_list = dict(cookie=dict(account=None, asset=None),
                                   passwords=[],
                                   session_cookie=dict())
-    password_list = plugin.get_password_list(cookie=dict(), session_cookie=dict(), target_username='unknown')
+    password_list = configured_plugin.get_password_list(cookie=dict(), session_cookie=dict(), target_username='unknown')
     assert password_list == expected_password_list
