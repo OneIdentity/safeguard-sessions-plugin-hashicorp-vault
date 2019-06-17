@@ -42,7 +42,7 @@ def test_do_get_password_list(client):
     ''')
     plugin = Plugin(config)
     username = 'wsmith'
-    expected_password_list = dict(cookie=dict(account=username, assets=[None]),
+    expected_password_list = dict(cookie=dict(account=username, asset=None),
                                   passwords=['password'],
                                   session_cookie=dict())
     password_list = plugin.get_password_list(cookie=dict(), session_cookie=dict(), target_username=username)
