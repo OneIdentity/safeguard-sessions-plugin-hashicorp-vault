@@ -56,7 +56,7 @@ class ClientFactory(object):
         role = config.get('hashicorp_vault_approle_authentication', 'role')
         if role:
             vault_token = config.get('hashicorp_vault_approle_authentication', 'vault_token')
-            authenticator = AppRoleAuthenticator(vault_url, role, vault_token)
+            authenticator = AppRoleAuthenticator(vault_url, vault_token, role)
         else:
             raise VaultException('No valid auth method can be determined based on config')
 

@@ -165,7 +165,7 @@ def test_client_factory_can_be_instantiated_with_config(mocker):
         client_factory.authenticator,
         client_factory.secret_retriever
     )
-    client_factory.authenticator.__init__.assert_called_with(client_factory.authenticator, URL, ROLE, VAULT_TOKEN)
+    client_factory.authenticator.__init__.assert_called_with(client_factory.authenticator, URL, VAULT_TOKEN, ROLE)
     client_factory.secret_retriever.__init__.assert_called_with(client_factory.secret_retriever, URL, SECRETS_PATH)
 
 
