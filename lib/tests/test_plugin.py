@@ -22,12 +22,14 @@
 
 from textwrap import dedent
 from unittest.mock import patch
+from pytest import fixture
 
+from safeguard.sessions.plugin_impl.test_utils.plugin import assert_plugin_hook_result
 from ..plugin import Plugin
 
 
-@patch('lib.client.Client.get_secret', return_value='password')
-def test_do_get_password_list(client):
+@fixture
+def configured_plugin():
     config = dedent('''
         [hashicorp_vault]
         address = test.vault
@@ -40,11 +42,26 @@ def test_do_get_password_list(client):
         [hashicorp_vault_secrets_engine_kv_v1]
         secrets_path = kv/users
     ''')
-    plugin = Plugin(config)
+    return Plugin(config)
+
+
+@patch('lib.client.Client.get_secret', return_value='password')
+def test_do_get_password_list(client, configured_plugin):
     username = 'wsmith'
-    expected_password_list = dict(cookie=dict(account=username, assets=[None]),
-                                  passwords=['password'],
-                                  session_cookie=dict())
-    password_list = plugin.get_password_list(cookie=dict(), session_cookie=dict(), target_username=username)
+    password_list = configured_plugin.get_password_list(cookie=dict(), session_cookie=dict(), target_username=username)
     client.assert_called_with(username)
-    assert password_list == expected_password_list
+    assert_plugin_hook_result(
+        password_list,
+        dict(cookie=dict(account=username, asset=None),
+             passwords=['password'])
+    )
+
+
+@patch('lib.client.Client.get_secret', return_value=None)
+def test_getting_password_for_unknown_user(client, configured_plugin):
+    password_list = configured_plugin.get_password_list(cookie=dict(), session_cookie=dict(), target_username='unknown')
+    assert_plugin_hook_result(
+        password_list,
+        dict(cookie=dict(account=None, asset=None),
+             passwords=[])
+    )
