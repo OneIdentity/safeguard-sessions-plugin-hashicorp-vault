@@ -20,6 +20,7 @@
 # IN THE SOFTWARE.
 #
 import json
+from requests.exceptions import ConnectionError
 from pytest import raises
 from unittest.mock import patch, call
 from collections import namedtuple
@@ -208,6 +209,13 @@ def test_get_secret_by_key(get_mock, post_mock):
 @patch('requests.post', side_effect=POST_RESPONSES)
 @patch('requests.get', side_effect=[GET_RESPONSES[0], ERROR_RESPONSE])
 def test_error_occurs_when_getting_secret(_get_mock, _post_mock):
+    client = Client(AUTHENTICATOR, SECRET_RETRIEVER)
+    with raises(VaultException):
+        client.get_secret(key=SECRET_KEY)
+
+
+@patch('requests.get', side_effect=[ConnectionError()])
+def test_cannot_connect_to_vault(_get_mock):
     client = Client(AUTHENTICATOR, SECRET_RETRIEVER)
     with raises(VaultException):
         client.get_secret(key=SECRET_KEY)
