@@ -24,6 +24,7 @@ import logging
 import requests
 import json
 import abc
+from safeguard.sessions.plugin.requests_tls import RequestsTLS
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,8 @@ class VaultException(Exception):
 
 class ClientFactory:
 
-    def __init__(self, authenticator, secret_retriever):
+    def __init__(self, requests_tls, authenticator, secret_retriever):
+        self.__requests_tls = requests_tls
         self.__authenticator = authenticator
         self.__secret_retriever = secret_retriever
 
@@ -46,13 +48,19 @@ class ClientFactory:
     def secret_retriever(self):
         return self.__secret_retriever
 
+    @property
+    def session_factory(self):
+        return self.__requests_tls
+
     def instantiate(self):
-        return Client(self.__authenticator, self.__secret_retriever)
+        return Client(self.__requests_tls, self.__authenticator, self.__secret_retriever)
 
     @classmethod
     def from_config(cls, config):
-        vault_url = 'http://{}:{}'.format(config.get('hashicorp_vault', 'address', required=True),
-                                          config.getint('hashicorp_vault', 'port', default=8200))
+        requests_tls = RequestsTLS.from_config(config)
+        vault_url = '{}://{}:{}'.format('https' if requests_tls.tls_enabled else 'http',
+                                        config.get('hashicorp_vault', 'address', required=True),
+                                        config.getint('hashicorp_vault', 'port', default=8200))
         role = config.get('hashicorp_vault_approle_authentication', 'role')
         if role:
             vault_token = config.get('hashicorp_vault_approle_authentication', 'vault_token')
@@ -66,25 +74,26 @@ class ClientFactory:
         else:
             raise VaultException('No valid secrets engine can be determined based on config')
 
-        return ClientFactory(authenticator, secret_retriever)
+        return ClientFactory(requests_tls, authenticator, secret_retriever)
 
 
 class Client:
-
-    def __init__(self, authenticator, secret_retriever):
+    def __init__(self, requests_tls, authenticator, secret_retriever):
+        self.__requests_tls = requests_tls
         self.__authenticator = authenticator
         self.__secret_retriever = secret_retriever
 
     def get_secret(self, key):
-        client_token = self.__authenticator.authenticate()
-        secret = self.__secret_retriever.retrieve_secret(key, client_token)
+        with self.__requests_tls.open_session() as session:
+            client_token = self.__authenticator.authenticate(session)
+            secret = self.__secret_retriever.retrieve_secret(session, key, client_token)
         return secret
 
 
 class SecretRetriever(abc.ABC):
 
     @abc.abstractmethod
-    def retrieve_secret(self, key, client_token):
+    def retrieve_secret(self, session, key, client_token):
         pass
 
 
@@ -94,8 +103,9 @@ class KVEngineV1SecretRetriever(SecretRetriever):
         self.__vault_url = vault_url
         self.__secrets_path = secrets_path
 
-    def retrieve_secret(self, key, client_token):
-        secret = _extract_data_from_endpoint(endpoint_url=self.__vault_url + '/v1/' + self.__secrets_path,
+    def retrieve_secret(self, session, key, client_token):
+        secret = _extract_data_from_endpoint(session,
+                                             endpoint_url=self.__vault_url + '/v1/' + self.__secrets_path,
                                              data_path='data.' + key,
                                              token=client_token,
                                              method='get')
@@ -105,7 +115,7 @@ class KVEngineV1SecretRetriever(SecretRetriever):
 class Authenticator(abc.ABC):
 
     @abc.abstractmethod
-    def authenticate(self):
+    def authenticate(self, session):
         pass
 
 
@@ -116,16 +126,19 @@ class AppRoleAuthenticator(Authenticator):
         self.__vault_token = vault_token
         self.__role = role
 
-    def authenticate(self):
-        role_id = _extract_data_from_endpoint(endpoint_url=self.__vault_url + '/v1/auth/approle/role/' + self.__role + '/role-id',
+    def authenticate(self, session):
+        role_id = _extract_data_from_endpoint(session,
+                                              endpoint_url=self.__vault_url + '/v1/auth/approle/role/' + self.__role + '/role-id',
                                               data_path='data.role_id',
                                               token=self.__vault_token,
                                               method='get')
-        secret_id = _extract_data_from_endpoint(endpoint_url=self.__vault_url + '/v1/auth/approle/role/' + self.__role + '/secret-id',
+        secret_id = _extract_data_from_endpoint(session,
+                                                endpoint_url=self.__vault_url + '/v1/auth/approle/role/' + self.__role + '/secret-id',
                                                 data_path='data.secret_id',
                                                 token=self.__vault_token,
                                                 method='post')
-        client_token = _extract_data_from_endpoint(endpoint_url=self.__vault_url + '/v1/auth/approle/login',
+        client_token = _extract_data_from_endpoint(session,
+                                                   endpoint_url=self.__vault_url + '/v1/auth/approle/login',
                                                    data_path='auth.client_token',
                                                    token=self.__vault_token,
                                                    method='post',
@@ -133,13 +146,13 @@ class AppRoleAuthenticator(Authenticator):
         return client_token
 
 
-def _extract_data_from_endpoint(endpoint_url, data_path, token, method, data=None):
+def _extract_data_from_endpoint(session, endpoint_url, data_path, token, method, data=None):
     headers = {'X-Vault-Token': token}
     logger.debug('Sending http request to Hashicorp Vault, endpoint_url="{}", method="{}"'
                  .format(endpoint_url, method))
     try:
-        response = requests.get(endpoint_url, headers=headers) if method == 'get' \
-            else requests.post(endpoint_url, headers=headers, data=json.dumps(data) if data else None)
+        response = session.get(endpoint_url, headers=headers) if method == 'get' \
+            else session.post(endpoint_url, headers=headers, data=json.dumps(data) if data else None)
     except requests.exceptions.ConnectionError as exc:
         raise VaultException('Connection error: {}'.format(exc))
     if response.ok:
