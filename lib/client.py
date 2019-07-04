@@ -35,19 +35,19 @@ class VaultException(Exception):
 class ClientFactory(object):
 
     def __init__(self, authenticator, secret_retriever):
-        self._authenticator = authenticator
-        self._secret_retriever = secret_retriever
+        self.__authenticator = authenticator
+        self.__secret_retriever = secret_retriever
 
     @property
     def authenticator(self):
-        return self._authenticator
+        return self.__authenticator
 
     @property
     def secret_retriever(self):
-        return self._secret_retriever
+        return self.__secret_retriever
 
     def instantiate(self):
-        return Client(self._authenticator, self._secret_retriever)
+        return Client(self.__authenticator, self.__secret_retriever)
 
     @classmethod
     def from_config(cls, config):
@@ -72,12 +72,12 @@ class ClientFactory(object):
 class Client(object):
 
     def __init__(self, authenticator, secret_retriever):
-        self._authenticator = authenticator
-        self._secret_retriever = secret_retriever
+        self.__authenticator = authenticator
+        self.__secret_retriever = secret_retriever
 
     def get_secret(self, key):
-        client_token = self._authenticator.authenticate()
-        secret = self._secret_retriever.retrieve_secret(key, client_token)
+        client_token = self.__authenticator.authenticate()
+        secret = self.__secret_retriever.retrieve_secret(key, client_token)
         return secret
 
 
@@ -91,11 +91,11 @@ class SecretRetriever(abc.ABC):
 class KVEngineV1SecretRetriever(SecretRetriever):
 
     def __init__(self, vault_url, secrets_path):
-        self._vault_url = vault_url
-        self._secrets_path = secrets_path
+        self.__vault_url = vault_url
+        self.__secrets_path = secrets_path
 
     def retrieve_secret(self, key, client_token):
-        secret = _extract_data_from_endpoint(endpoint_url=self._vault_url + '/v1/' + self._secrets_path,
+        secret = _extract_data_from_endpoint(endpoint_url=self.__vault_url + '/v1/' + self.__secrets_path,
                                              data_path='data.' + key,
                                              token=client_token,
                                              method='get')
@@ -112,22 +112,22 @@ class Authenticator(abc.ABC):
 class AppRoleAuthenticator(Authenticator):
 
     def __init__(self, vault_url, vault_token, role):
-        self._vault_url = vault_url
-        self._vault_token = vault_token
-        self._role = role
+        self.__vault_url = vault_url
+        self.__vault_token = vault_token
+        self.__role = role
 
     def authenticate(self):
-        role_id = _extract_data_from_endpoint(endpoint_url=self._vault_url + '/v1/auth/approle/role/' + self._role + '/role-id',
+        role_id = _extract_data_from_endpoint(endpoint_url=self.__vault_url + '/v1/auth/approle/role/' + self.__role + '/role-id',
                                               data_path='data.role_id',
-                                              token=self._vault_token,
+                                              token=self.__vault_token,
                                               method='get')
-        secret_id = _extract_data_from_endpoint(endpoint_url=self._vault_url + '/v1/auth/approle/role/' + self._role + '/secret-id',
+        secret_id = _extract_data_from_endpoint(endpoint_url=self.__vault_url + '/v1/auth/approle/role/' + self.__role + '/secret-id',
                                                 data_path='data.secret_id',
-                                                token=self._vault_token,
+                                                token=self.__vault_token,
                                                 method='post')
-        client_token = _extract_data_from_endpoint(endpoint_url=self._vault_url + '/v1/auth/approle/login',
+        client_token = _extract_data_from_endpoint(endpoint_url=self.__vault_url + '/v1/auth/approle/login',
                                                    data_path='auth.client_token',
-                                                   token=self._vault_token,
+                                                   token=self.__vault_token,
                                                    method='post',
                                                    data={'role_id': role_id, 'secret_id': secret_id})
         return client_token
