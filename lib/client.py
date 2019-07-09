@@ -32,7 +32,7 @@ class VaultException(Exception):
     pass
 
 
-class ClientFactory(object):
+class ClientFactory:
 
     def __init__(self, authenticator, secret_retriever):
         self.__authenticator = authenticator
@@ -69,7 +69,7 @@ class ClientFactory(object):
         return ClientFactory(authenticator, secret_retriever)
 
 
-class Client(object):
+class Client:
 
     def __init__(self, authenticator, secret_retriever):
         self.__authenticator = authenticator
