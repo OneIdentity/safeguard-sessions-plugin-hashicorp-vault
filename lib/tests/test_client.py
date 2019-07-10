@@ -22,9 +22,10 @@
 import json
 from requests.exceptions import ConnectionError
 from pytest import raises
-from unittest.mock import patch, call
+from unittest.mock import patch, call, MagicMock
 from collections import namedtuple
 from textwrap import dedent
+from contextlib import contextmanager
 
 from safeguard.sessions.plugin.plugin_configuration import PluginConfiguration
 
@@ -148,12 +149,24 @@ ERROR_RESPONSE = Response(text=json.dumps({
 }), ok=False)
 
 
+@contextmanager
+def _open_session():
+    yield SESSION
+
+
+SESSION = MagicMock()
+REQUESTS_TLS = MagicMock()
+REQUESTS_TLS.tls_enabled = False
+REQUESTS_TLS.open_session = _open_session
+
+
 def test_client_factory_instantiates_client():
-    client_factory = ClientFactory(AUTHENTICATOR, SECRET_RETRIEVER)
+    client_factory = ClientFactory(REQUESTS_TLS, AUTHENTICATOR, SECRET_RETRIEVER)
     assert isinstance(client_factory.instantiate(), Client)
 
 
-def test_client_factory_can_be_instantiated_with_config(mocker):
+@patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
+def test_client_factory_can_be_instantiated_with_config(_requests_tls, mocker):
     config = PluginConfiguration(HASHICORP_VAULT_CONFIG +
                                  HASHICORP_VAULT_APPROLE_AUTH_CONFIG +
                                  HASHICORP_VAULT_KV_V1_CONFIG)
@@ -163,11 +176,26 @@ def test_client_factory_can_be_instantiated_with_config(mocker):
     client_factory = ClientFactory.from_config(config)
     client_factory.__init__.assert_called_with(
         client_factory,
+        client_factory.session_factory,
         client_factory.authenticator,
         client_factory.secret_retriever
     )
     client_factory.authenticator.__init__.assert_called_with(client_factory.authenticator, URL, VAULT_TOKEN, ROLE)
     client_factory.secret_retriever.__init__.assert_called_with(client_factory.secret_retriever, URL, SECRETS_PATH)
+
+
+@patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
+def test_client_factory_uses_HTTPS_when_TLS_enabled(_requests_tls, mocker):
+    REQUESTS_TLS.tls_enabled = True
+    https_url = 'https://{}:{}'.format(ADDRESS, PORT)
+    config = PluginConfiguration(HASHICORP_VAULT_CONFIG +
+                                 HASHICORP_VAULT_APPROLE_AUTH_CONFIG +
+                                 HASHICORP_VAULT_KV_V1_CONFIG)
+    mocker.spy(AppRoleAuthenticator, '__init__')
+    mocker.spy(KVEngineV1SecretRetriever, '__init__')
+    client_factory = ClientFactory.from_config(config)
+    client_factory.authenticator.__init__.assert_called_with(client_factory.authenticator, https_url, VAULT_TOKEN, ROLE)
+    client_factory.secret_retriever.__init__.assert_called_with(client_factory.secret_retriever, https_url, SECRETS_PATH)
 
 
 def test_client_factory_raises_exception_if_auth_method_cannot_be_determined():
@@ -184,9 +212,9 @@ def test_client_factory_raises_exception_if_secrets_engine_cannot_be_determined(
         ClientFactory.from_config(config)
 
 
-@patch('requests.post', side_effect=POST_RESPONSES)
-@patch('requests.get', side_effect=GET_RESPONSES)
-def test_get_secret_by_key(get_mock, post_mock):
+def test_get_secret_by_key():
+    SESSION.post.side_effect = POST_RESPONSES
+    SESSION.get.side_effect = GET_RESPONSES
     expected_headers = {'X-Vault-Token': VAULT_TOKEN}
     expected_calls_to_get = [
         call(ROLE_ID_ENDPOINT, headers=expected_headers),
@@ -198,24 +226,24 @@ def test_get_secret_by_key(get_mock, post_mock):
              data=json.dumps({'role_id': ROLE_ID, 'secret_id': SECRET_ID}))
     ]
 
-    client = Client(AUTHENTICATOR, SECRET_RETRIEVER)
+    client = Client(REQUESTS_TLS, AUTHENTICATOR, SECRET_RETRIEVER)
     secret = client.get_secret(key=SECRET_KEY)
 
     assert secret == SECRET
-    get_mock.assert_has_calls(calls=expected_calls_to_get, any_order=False)
-    post_mock.assert_has_calls(calls=expected_calls_to_post, any_order=False)
+    SESSION.get.assert_has_calls(calls=expected_calls_to_get, any_order=False)
+    SESSION.post.assert_has_calls(calls=expected_calls_to_post, any_order=False)
 
 
-@patch('requests.post', side_effect=POST_RESPONSES)
-@patch('requests.get', side_effect=[GET_RESPONSES[0], ERROR_RESPONSE])
-def test_error_occurs_when_getting_secret(_get_mock, _post_mock):
-    client = Client(AUTHENTICATOR, SECRET_RETRIEVER)
+def test_error_occurs_when_getting_secret():
+    SESSION.post.side_effect = POST_RESPONSES
+    SESSION.get.side_effect = [GET_RESPONSES[0], ERROR_RESPONSE]
+    client = Client(REQUESTS_TLS, AUTHENTICATOR, SECRET_RETRIEVER)
     with raises(VaultException):
         client.get_secret(key=SECRET_KEY)
 
 
-@patch('requests.get', side_effect=[ConnectionError()])
-def test_cannot_connect_to_vault(_get_mock):
-    client = Client(AUTHENTICATOR, SECRET_RETRIEVER)
+def test_cannot_connect_to_vault():
+    SESSION.get.side_effect = [ConnectionError()]
+    client = Client(REQUESTS_TLS, AUTHENTICATOR, SECRET_RETRIEVER)
     with raises(VaultException):
         client.get_secret(key=SECRET_KEY)

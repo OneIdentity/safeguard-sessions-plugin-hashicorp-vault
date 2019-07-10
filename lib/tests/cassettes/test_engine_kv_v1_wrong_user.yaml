@@ -8,16 +8,16 @@ interactions:
       User-Agent: [python-requests/2.18.4]
       X-Vault-Token: [s.TnEOkvdIV2jQFICTamBaGAZb]
     method: GET
-    uri: http://10.170.1.34:8200/v1/auth/approle/role/my-role/role-id
+    uri: https://10.170.1.34:8200/v1/auth/approle/role/my-role/role-id
   response:
-    body: {string: '{"request_id":"9d4c16f5-fe80-9eea-a46e-eadf181dc5c6","lease_id":"","renewable":false,"lease_duration":0,"data":{"role_id":"522d06bf-1242-d168-c275-c3d597bf0513"},"wrap_info":null,"warnings":null,"auth":null}
+    body: {string: '{"request_id":"b3177cc5-eeb7-c319-840b-ad07c2073960","lease_id":"","renewable":false,"lease_duration":0,"data":{"role_id":"522d06bf-1242-d168-c275-c3d597bf0513"},"wrap_info":null,"warnings":null,"auth":null}
 
-        '}
+'}
     headers:
       Cache-Control: [no-store]
       Content-Length: ['208']
       Content-Type: [application/json]
-      Date: ['Mon, 17 Jun 2019 09:15:54 GMT']
+      Date: ['Mon, 08 Jul 2019 14:20:14 GMT']
     status: {code: 200, message: OK}
 - request:
     body: null
@@ -29,19 +29,19 @@ interactions:
       User-Agent: [python-requests/2.18.4]
       X-Vault-Token: [s.TnEOkvdIV2jQFICTamBaGAZb]
     method: POST
-    uri: http://10.170.1.34:8200/v1/auth/approle/role/my-role/secret-id
+    uri: https://10.170.1.34:8200/v1/auth/approle/role/my-role/secret-id
   response:
-    body: {string: '{"request_id":"e6e5d691-9571-cc98-e461-a9f8065b7ff6","lease_id":"","renewable":false,"lease_duration":0,"data":{"secret_id":"3f93bdcc-9053-25fc-bdb1-e879bf952602","secret_id_accessor":"87fdbea0-32d2-ea75-a553-05aec589f86e"},"wrap_info":null,"warnings":null,"auth":null}
+    body: {string: '{"request_id":"90e56e3d-5de0-9cde-a3df-1429edcea8c4","lease_id":"","renewable":false,"lease_duration":0,"data":{"secret_id":"9a583215-1d6a-3dfa-d072-c590d8d5333e","secret_id_accessor":"2ea7c0dd-2c2c-0488-3700-d646a52ca31c"},"wrap_info":null,"warnings":null,"auth":null}
 
-        '}
+'}
     headers:
       Cache-Control: [no-store]
       Content-Length: ['270']
       Content-Type: [application/json]
-      Date: ['Mon, 17 Jun 2019 09:15:54 GMT']
+      Date: ['Mon, 08 Jul 2019 14:20:14 GMT']
     status: {code: 200, message: OK}
 - request:
-    body: '{"role_id": "522d06bf-1242-d168-c275-c3d597bf0513", "secret_id": "3f93bdcc-9053-25fc-bdb1-e879bf952602"}'
+    body: '{"role_id": "522d06bf-1242-d168-c275-c3d597bf0513", "secret_id": "9a583215-1d6a-3dfa-d072-c590d8d5333e"}'
     headers:
       Accept: ['*/*']
       Accept-Encoding: ['gzip, deflate']
@@ -50,16 +50,16 @@ interactions:
       User-Agent: [python-requests/2.18.4]
       X-Vault-Token: [s.TnEOkvdIV2jQFICTamBaGAZb]
     method: POST
-    uri: http://10.170.1.34:8200/v1/auth/approle/login
+    uri: https://10.170.1.34:8200/v1/auth/approle/login
   response:
-    body: {string: '{"request_id":"47740114-857c-e040-5154-2fddd88ea44a","lease_id":"","renewable":false,"lease_duration":0,"data":null,"wrap_info":null,"warnings":null,"auth":{"client_token":"s.RuXJby297svrCJr7GsTSr0df","accessor":"AZTPEYZ5HFCjzBIRai1FBNXF","policies":["default","kv_admins"],"token_policies":["default","kv_admins"],"metadata":{"role_name":"my-role"},"lease_duration":1200,"renewable":true,"entity_id":"96a80de5-fe30-8a8b-d6b0-c075eb03ec83","token_type":"service","orphan":true}}
+    body: {string: '{"request_id":"dbdc5141-c26f-5398-5cbe-5950dddb5fa0","lease_id":"","renewable":false,"lease_duration":0,"data":null,"wrap_info":null,"warnings":null,"auth":{"client_token":"s.a8wAAtYLkHoinC4TOA47gVRB","accessor":"fX4hlFxoudBsaYHNRUaa7aTi","policies":["default","kv_admins"],"token_policies":["default","kv_admins"],"metadata":{"role_name":"my-role"},"lease_duration":1200,"renewable":true,"entity_id":"96a80de5-fe30-8a8b-d6b0-c075eb03ec83","token_type":"service","orphan":true}}
 
-        '}
+'}
     headers:
       Cache-Control: [no-store]
       Content-Length: ['479']
       Content-Type: [application/json]
-      Date: ['Mon, 17 Jun 2019 09:15:54 GMT']
+      Date: ['Mon, 08 Jul 2019 14:20:14 GMT']
     status: {code: 200, message: OK}
 - request:
     body: null
@@ -68,19 +68,19 @@ interactions:
       Accept-Encoding: ['gzip, deflate']
       Connection: [keep-alive]
       User-Agent: [python-requests/2.18.4]
-      X-Vault-Token: [s.RuXJby297svrCJr7GsTSr0df]
+      X-Vault-Token: [s.a8wAAtYLkHoinC4TOA47gVRB]
     method: GET
-    uri: http://10.170.1.34:8200/v1//passwords/users
+    uri: https://10.170.1.34:8200/v1//passwords/users
   response:
     body: {string: '<a href="/v1/passwords/users">Moved Permanently</a>.
 
 
-        '}
+'}
     headers:
       Cache-Control: [no-store]
       Content-Length: ['54']
       Content-Type: [text/html; charset=utf-8]
-      Date: ['Mon, 17 Jun 2019 09:15:54 GMT']
+      Date: ['Mon, 08 Jul 2019 14:20:14 GMT']
       Location: [/v1/passwords/users]
     status: {code: 301, message: Moved Permanently}
 - request:
@@ -90,17 +90,17 @@ interactions:
       Accept-Encoding: ['gzip, deflate']
       Connection: [keep-alive]
       User-Agent: [python-requests/2.18.4]
-      X-Vault-Token: [s.RuXJby297svrCJr7GsTSr0df]
+      X-Vault-Token: [s.a8wAAtYLkHoinC4TOA47gVRB]
     method: GET
-    uri: http://10.170.1.34:8200/v1/passwords/users
+    uri: https://10.170.1.34:8200/v1/passwords/users
   response:
-    body: {string: '{"request_id":"231a7bed-60ff-5935-494e-75d420486c0b","lease_id":"","renewable":false,"lease_duration":2764800,"data":{"wsmith":"titkos"},"wrap_info":null,"warnings":null,"auth":null}
+    body: {string: '{"request_id":"b229dfe6-4b49-f592-f5a5-c48cefafa152","lease_id":"","renewable":false,"lease_duration":2764800,"data":{"wsmith":"titkos"},"wrap_info":null,"warnings":null,"auth":null}
 
-        '}
+'}
     headers:
       Cache-Control: [no-store]
       Content-Length: ['183']
       Content-Type: [application/json]
-      Date: ['Mon, 17 Jun 2019 09:15:54 GMT']
+      Date: ['Mon, 08 Jul 2019 14:20:14 GMT']
     status: {code: 200, message: OK}
 version: 1
