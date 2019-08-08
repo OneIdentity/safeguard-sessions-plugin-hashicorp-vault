@@ -30,6 +30,7 @@ def test_engine_kv_v1(hc_config_engine_kv_v1, hc_account, hc_account_password):
         cookie={},
         session_cookie={},
         target_username=hc_account,
+        protocol='SSH'
     )
 
     assert_plugin_hook_result(
@@ -45,6 +46,7 @@ def test_engine_kv_v1_wrong_user(hc_config_engine_kv_v1, hc_wrong_account):
         cookie={},
         session_cookie={},
         target_username=hc_wrong_account,
+        protocol='SSH'
     )
 
     assert_plugin_hook_result(
