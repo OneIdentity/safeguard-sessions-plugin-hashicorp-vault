@@ -48,7 +48,12 @@ def configured_plugin():
 @patch('lib.client.Client.get_secret', return_value='password')
 def test_do_get_password_list(client, configured_plugin):
     username = 'wsmith'
-    password_list = configured_plugin.get_password_list(cookie=dict(), session_cookie=dict(), target_username=username)
+    password_list = configured_plugin.get_password_list(
+        cookie=dict(),
+        session_cookie=dict(),
+        target_username=username,
+        protocol='SSH'
+    )
     client.assert_called_with(username)
     assert_plugin_hook_result(
         password_list,
@@ -59,7 +64,12 @@ def test_do_get_password_list(client, configured_plugin):
 
 @patch('lib.client.Client.get_secret', return_value=None)
 def test_getting_password_for_unknown_user(client, configured_plugin):
-    password_list = configured_plugin.get_password_list(cookie=dict(), session_cookie=dict(), target_username='unknown')
+    password_list = configured_plugin.get_password_list(
+        cookie=dict(),
+        session_cookie=dict(),
+        target_username='unknown',
+        protocol='SSH'
+    )
     assert_plugin_hook_result(
         password_list,
         dict(cookie=dict(account=None, asset=None),
