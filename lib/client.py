@@ -59,16 +59,16 @@ class ClientFactory:
     def from_config(cls, config):
         requests_tls = RequestsTLS.from_config(config)
         vault_url = '{}://{}:{}'.format('https' if requests_tls.tls_enabled else 'http',
-                                        config.get('hashicorp_vault', 'address', required=True),
-                                        config.getint('hashicorp_vault', 'port', default=8200))
-        role = config.get('hashicorp_vault_approle_authentication', 'role')
+                                        config.get('hashicorp-vault', 'address', required=True),
+                                        config.getint('hashicorp-vault', 'port', default=8200))
+        role = config.get('approle-authentication', 'role')
         if role:
-            vault_token = config.get('hashicorp_vault_approle_authentication', 'vault_token')
+            vault_token = config.get('approle-authentication', 'vault_token')
             authenticator = AppRoleAuthenticator(vault_url, vault_token, role)
         else:
             raise VaultException('No valid auth method can be determined based on config')
 
-        secrets_path = config.get('hashicorp_vault_secrets_engine_kv_v1', 'secrets_path')
+        secrets_path = config.get('engine-kv-v1', 'secrets_path')
         if secrets_path:
             secret_retriever = KVEngineV1SecretRetriever(vault_url, secrets_path)
         else:
