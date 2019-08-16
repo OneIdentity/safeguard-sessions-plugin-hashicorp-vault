@@ -71,15 +71,15 @@ def hc_wrong_account(site_parameters):
 @pytest.fixture
 def hc_config_engine_kv_v1(site_parameters):
     yield dedent("""
-        [hashicorp_vault]
+        [hashicorp-vault]
         address = {address}
         port = {port}
 
-        [hashicorp_vault_approle_authentication]
+        [approle-authentication]
         role = {role}
         vault_token = {vault_token}
 
-        [hashicorp_vault_secrets_engine_kv_v1]
+        [engine-kv-v1]
         secrets_path = {secrets_path}
     """.format(
         address=site_parameters['address'],

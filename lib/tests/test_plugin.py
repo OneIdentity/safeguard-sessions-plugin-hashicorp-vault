@@ -31,15 +31,15 @@ from ..plugin import Plugin
 @fixture
 def configured_plugin():
     config = dedent('''
-        [hashicorp_vault]
+        [hashicorp-vault]
         address = test.vault
         port = 8200
 
-        [hashicorp_vault_approle_authentication]
+        [approle-authentication]
         role = testrole
         vault_token = test_token
 
-        [hashicorp_vault_secrets_engine_kv_v1]
+        [engine-kv-v1]
         secrets_path = kv/users
     ''')
     return Plugin(config)

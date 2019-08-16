@@ -53,19 +53,19 @@ LOGIN_ENDPOINT = URL + '/v1/auth/approle/login'
 SECRETS_ENDPOINT = URL + '/v1/' + SECRETS_PATH
 
 HASHICORP_VAULT_CONFIG = dedent('''
-    [hashicorp_vault]
+    [hashicorp-vault]
     address = {}
     port = {}
 '''.format(ADDRESS, PORT))
 
 HASHICORP_VAULT_APPROLE_AUTH_CONFIG = dedent('''
-    [hashicorp_vault_approle_authentication]
+    [approle-authentication]
     role = {}
     vault_token = {}
 '''.format(ROLE, VAULT_TOKEN))
 
 HASHICORP_VAULT_KV_V1_CONFIG = dedent('''
-    [hashicorp_vault_secrets_engine_kv_v1]
+    [engine-kv-v1]
     secrets_path = {}
 '''.format(SECRETS_PATH))
 
