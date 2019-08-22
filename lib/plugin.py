@@ -29,8 +29,8 @@ class Plugin(CredentialStorePlugin):
 
     def __init__(self, configuration):
         super().__init__(configuration)
-        self.__vault_client = ClientFactory.from_config(self.plugin_configuration).instantiate()
 
     def do_get_password_list(self):
-        password = self.__vault_client.get_secret(self.account)
+        vault_client = ClientFactory.from_config(self.plugin_configuration).instantiate()
+        password = vault_client.get_secret(self.account)
         return {'passwords': [password] if password else []}
