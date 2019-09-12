@@ -74,6 +74,7 @@ def hc_config_engine_kv_v1(site_parameters):
         [hashicorp-vault]
         address = {address}
         port = {port}
+        authentication_method = approle
 
         [approle-authentication]
         role = {role}

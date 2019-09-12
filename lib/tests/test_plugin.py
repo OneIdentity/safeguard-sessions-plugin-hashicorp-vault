@@ -34,6 +34,7 @@ def configured_plugin():
         [hashicorp-vault]
         address = test.vault
         port = 8200
+        authentication_method = approle
 
         [approle-authentication]
         role = testrole

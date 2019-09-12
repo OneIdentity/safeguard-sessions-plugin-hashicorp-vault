@@ -1,3 +1,7 @@
+1.1.0 2019-09-12
+
+Add LDAP and userpass authentication methods
+
 1.0.0 2019-06-11
 
 Initial release on GitHub.

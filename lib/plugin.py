@@ -22,7 +22,7 @@
 
 from safeguard.sessions.plugin.credentialstore_plugin import CredentialStorePlugin
 
-from .client import ClientFactory
+from .client import Client
 
 
 class Plugin(CredentialStorePlugin):
@@ -31,6 +31,8 @@ class Plugin(CredentialStorePlugin):
         super().__init__(configuration)
 
     def do_get_password_list(self):
-        vault_client = ClientFactory.from_config(self.plugin_configuration).instantiate()
+        vault_client = Client.create_client(self.plugin_configuration,
+                                            self.connection.gateway_username,
+                                            self.connection.gateway_password)
         password = vault_client.get_secret(self.account)
         return {'passwords': [password] if password else []}
