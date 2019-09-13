@@ -31,7 +31,7 @@ from ..plugin import Plugin
 @fixture
 def configured_plugin():
     config = dedent('''
-        [hashicorp-vault]
+        [hashicorp]
         address = test.vault
         port = 8200
         authentication_method = approle

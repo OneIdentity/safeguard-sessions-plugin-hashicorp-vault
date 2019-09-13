@@ -71,7 +71,7 @@ def hc_wrong_account(site_parameters):
 @pytest.fixture
 def hc_config_approle_auth_engine_kv_v1(site_parameters):
     yield dedent("""
-        [hashicorp-vault]
+        [hashicorp]
         address = {address}
         port = {port}
         authentication_method = approle
@@ -95,7 +95,7 @@ def hc_config_approle_auth_engine_kv_v1(site_parameters):
 def make_hc_config(site_parameters):
     def _make_config(auth_method):
         return dedent("""
-            [hashicorp-vault]
+            [hashicorp]
             address = {address}
             port = {port}
             authentication_method = {auth_method}

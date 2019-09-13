@@ -80,8 +80,8 @@ class Client:
     @classmethod
     def create_client(cls, config, gw_user=None, gw_password=None):
         requests_tls = RequestsTLS.from_config(config)
-        vault_addresses = config.get('hashicorp-vault', 'address', required=True).split(',')
-        vault_port = config.getint('hashicorp-vault', 'port', default=8200)
+        vault_addresses = config.get('hashicorp', 'address', required=True).split(',')
+        vault_port = config.getint('hashicorp', 'port', default=8200)
 
         vault_url = cls._determine_vault_to_use(requests_tls, vault_addresses, vault_port)
 
@@ -102,7 +102,7 @@ class AuthenticatorFactory:
     @classmethod
     def provide_authenticator(cls, config, vault_url, gw_user=None, gw_password=None):
         auth_method = config.getienum(
-            'hashicorp-vault',
+            'hashicorp',
             'authentication_method',
             ('ldap', 'userpass', 'approle'),
             required=True)
@@ -124,8 +124,8 @@ class AuthenticatorFactory:
     @staticmethod
     def credential_from_config(config, option_name):
         return (
-            config.get('hashicorp-vault', option_name, required=True)
-            if config.get('hashicorp-vault', 'use_credential', required=True) == 'explicit'
+            config.get('hashicorp', option_name, required=True)
+            if config.get('hashicorp', 'use_credential', required=True) == 'explicit'
             else None
         )
 

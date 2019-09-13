@@ -170,7 +170,7 @@ REQUESTS_TLS.open_session = _open_session
 
 def hashicorp_vault_config(address=ADDRESS, auth_method='approle', extra_parts=''):
     return dedent('''
-        [hashicorp-vault]
+        [hashicorp]
         address = {}
         port = {}
         authentication_method = {}

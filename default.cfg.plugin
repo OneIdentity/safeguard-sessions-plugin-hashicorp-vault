@@ -1,4 +1,4 @@
-[hashicorp-vault]
+[hashicorp]
 # The address or hostname of the Hashicorp Vault.
 ; address=<address>
 
@@ -8,14 +8,13 @@
 
 # The authentication method to use to connect
 # to the vault.
-# Vaules can be ldap, userpass, x509, approle
-# Default is approle
-; authentication_method=approle
+# Values can be ldap, userpass
+; authentication_method=<authentication_method>
 
-# Defines which credenteials to use
-# In case of explicit username and password
-# need to be configured
-; use_credential=explict/gateway
+# Defines which credentials to use
+# In case of explicit the username and password
+# need to be configured depending on the authentication method
+; use_credential=<use_credentials>
 
 # The username used to authenticate with LDAP method
 ; ldap_username=<username>
@@ -28,18 +27,6 @@
 
 # The password used to authenticate with userpass method
 ; password=<password>
-
-[approle-authentication]
-# Name of role for AppRole authentication.
-# Make sure the role has a policy set to have permission to
-# read the endpoint set in secrets_path.
-; role=<role-name>
-
-# Access token to the vault.
-# You should generate a token with permissions to read
-# the approle endpoint (v1/auth/approle/role/*), or you
-# can use the root token, but it is ill advised to do so.
-; vault_token=<token>
 
 [engine-kv-v1]
 # Path of endpoint where the users and passwords are stored
