@@ -58,12 +58,34 @@ class Client:
             secret = self.__secret_retriever.retrieve_secret(session, key, client_token)
         return secret
 
+    @staticmethod
+    def _determine_vault_to_use(requests_tls, vault_addresses, vault_port):
+        vault_url = None
+        with requests_tls.open_session() as session:
+            for vault_address in vault_addresses:
+                vault_url = '{}://{}:{}'.format('https' if requests_tls.tls_enabled else 'http',
+                                                vault_address,
+                                                vault_port)
+                try:
+                    logger.info('Try to setup connection to Vault on address: {}'.format(vault_address))
+                    _extract_data_from_endpoint(session, vault_url + '/v1/sys/health', 'sealed', None, 'get')
+                    break
+                except VaultException:
+                    logger.error('Cannot connect to vault on the following address: {}'.format(vault_url))
+                    continue
+            else:
+                raise VaultException('None of the configured vaults can be reached')
+        return vault_url
+
     @classmethod
     def create_client(cls, config, gw_user=None, gw_password=None):
         requests_tls = RequestsTLS.from_config(config)
-        vault_url = '{}://{}:{}'.format('https' if requests_tls.tls_enabled else 'http',
-                                        config.get('hashicorp-vault', 'address', required=True),
-                                        config.getint('hashicorp-vault', 'port', default=8200))
+        vault_addresses = config.get('hashicorp-vault', 'address', required=True).split(',')
+        vault_port = config.getint('hashicorp-vault', 'port', default=8200)
+
+        vault_url = cls._determine_vault_to_use(requests_tls, vault_addresses, vault_port)
+
+        logger.info('Using Vault {}'.format(vault_url))
 
         secrets_path = config.get('engine-kv-v1', 'secrets_path')
         if secrets_path:

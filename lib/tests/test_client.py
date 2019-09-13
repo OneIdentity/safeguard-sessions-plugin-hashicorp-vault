@@ -137,7 +137,19 @@ GET_RESPONSES = [
         'wrap_info': None,
         'warnings': None,
         'auth': None
-    }), ok=True)
+    }), ok=True),
+    Response(text=json.dumps({
+        'initialized': True,
+        'sealed': False,
+        'standby': False,
+        'performance_standby': False,
+        'replication_performance_mode': 'disabled',
+        'replication_dr_mode': 'disabled',
+        'server_time_utc': 1568365137,
+        'version': '1.1.2',
+        'cluster_name': 'vault-cluster-eba4a26a',
+        'cluster_id': 'df107efd-43e2-b4a0-a0ac-939e3cead978'}
+    ), ok=True)
 ]
 
 ERROR_RESPONSE = Response(text=json.dumps({
@@ -156,14 +168,14 @@ REQUESTS_TLS.tls_enabled = False
 REQUESTS_TLS.open_session = _open_session
 
 
-def hashicorp_vault_config(auth_method='approle', extra_parts=''):
+def hashicorp_vault_config(address=ADDRESS, auth_method='approle', extra_parts=''):
     return dedent('''
         [hashicorp-vault]
         address = {}
         port = {}
         authentication_method = {}
         {}
-        '''.format(ADDRESS, PORT, auth_method, extra_parts))
+        '''.format(address, PORT, auth_method, extra_parts))
 
 
 def test_client_can_be_instantiated():
@@ -173,6 +185,8 @@ def test_client_can_be_instantiated():
 
 @patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
 def test_client_can_be_instantiated_with_config(_requests_tls, mocker):
+    SESSION.post.side_effect = POST_RESPONSES
+    SESSION.get.side_effect = GET_RESPONSES
     config = PluginConfiguration(hashicorp_vault_config() +
                                  HASHICORP_VAULT_APPROLE_AUTH_CONFIG +
                                  HASHICORP_VAULT_KV_V1_CONFIG)
@@ -204,15 +218,9 @@ def test_client_factory_uses_HTTPS_when_TLS_enabled(_requests_tls, mocker):
     client.secret_retriever.__init__.assert_called_with(client.secret_retriever, https_url, SECRETS_PATH)
 
 
-@pytest.mark.skip(reason='Exception handled during config parsing do we need this test?')
-def test_client_factory_raises_exception_if_auth_method_cannot_be_determined():
-    config = PluginConfiguration(hashicorp_vault_config() +
-                                 HASHICORP_VAULT_KV_V1_CONFIG)
-    with raises(VaultException):
-        Client.create_client(config)
-
-
-def test_client_factory_raises_exception_if_secrets_engine_cannot_be_determined():
+@patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
+def test_client_factory_raises_exception_if_secrets_engine_cannot_be_determined(_requests_tls):
+    SESSION.get.side_effect = GET_RESPONSES
     config = PluginConfiguration(hashicorp_vault_config() +
                                  HASHICORP_VAULT_APPROLE_AUTH_CONFIG)
     with raises(VaultException):
@@ -262,8 +270,10 @@ def data_provider():
     yield ('approle', AppRoleAuthenticator, '')
 
 
+@patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
 @pytest.mark.parametrize('auth_method, instance, extra_config', data_provider())
-def test_client_uses_the_appropriate_authenticator(auth_method, instance, extra_config):
+def test_client_uses_the_appropriate_authenticator(_requests_tls, auth_method, instance, extra_config):
+    SESSION.get.side_effect = GET_RESPONSES
     config = PluginConfiguration(
         hashicorp_vault_config(
             auth_method=auth_method,
@@ -300,3 +310,18 @@ def test_authenticator_calculates_username_and_password_according_to_config(_req
         vault_address,
         *expected
     )
+
+
+@patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
+def test_raises_vault_error_when_cannot_make_connection_to_vault(_requests_tls):
+    SESSION.get.side_effect = [ConnectionError()]
+    config = PluginConfiguration(
+        hashicorp_vault_config(
+            address='vault.is.down',
+            auth_method='ldap',
+            extra_parts='use_credential=explicit\nldap_username=user\nldap_password=pass') +
+        HASHICORP_VAULT_APPROLE_AUTH_CONFIG +
+        HASHICORP_VAULT_KV_V1_CONFIG
+    )
+    with raises(VaultException):
+        Client.create_client(config)

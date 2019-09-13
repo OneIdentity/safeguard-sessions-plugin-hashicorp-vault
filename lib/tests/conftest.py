@@ -69,7 +69,7 @@ def hc_wrong_account(site_parameters):
 
 
 @pytest.fixture
-def hc_config_engine_kv_v1(site_parameters):
+def hc_config_approle_auth_engine_kv_v1(site_parameters):
     yield dedent("""
         [hashicorp-vault]
         address = {address}
@@ -89,3 +89,38 @@ def hc_config_engine_kv_v1(site_parameters):
         vault_token=site_parameters['vault_token'],
         secrets_path=site_parameters['secrets_path'],
     ))
+
+
+@pytest.fixture
+def make_hc_config(site_parameters):
+    def _make_config(auth_method):
+        return dedent("""
+            [hashicorp-vault]
+            address = {address}
+            port = {port}
+            authentication_method = {auth_method}
+            use_credential=explicit
+            ldap_username={ldap_username}
+            ldap_password={ldap_password}
+            username={username}
+            password={password}
+
+            [approle-authentication]
+            role = {role}
+            vault_token = {vault_token}
+
+            [engine-kv-v1]
+            secrets_path = {secrets_path}
+        """.format(
+            address=site_parameters['address'],
+            port=site_parameters['port'],
+            role=site_parameters['role'],
+            vault_token=site_parameters['vault_token'],
+            secrets_path=site_parameters['secrets_path'],
+            ldap_username=site_parameters['ldap_username'],
+            ldap_password=site_parameters['ldap_password'],
+            username=site_parameters['username'],
+            password=site_parameters['password'],
+            auth_method=auth_method
+        ))
+    return _make_config

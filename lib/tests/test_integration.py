@@ -19,12 +19,13 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 #
+from pytest import mark
 from ..plugin import Plugin
 from safeguard.sessions.plugin_impl.test_utils.plugin import assert_plugin_hook_result
 
-
-def test_engine_kv_v1(hc_config_engine_kv_v1, hc_account, hc_account_password):
-    plugin = Plugin(hc_config_engine_kv_v1)
+@mark.parametrize('auth_method', ('approle', 'ldap', 'userpass'))
+def test_secret_retreiving(auth_method, hc_account, hc_account_password, make_hc_config):
+    plugin = Plugin(make_hc_config(auth_method))
 
     result = plugin.get_password_list(
         cookie={},
@@ -39,8 +40,9 @@ def test_engine_kv_v1(hc_config_engine_kv_v1, hc_account, hc_account_password):
     )
 
 
-def test_engine_kv_v1_wrong_user(hc_config_engine_kv_v1, hc_wrong_account):
-    plugin = Plugin(hc_config_engine_kv_v1)
+@mark.parametrize('auth_method', ('approle', 'ldap', 'userpass'))
+def test_secret_retrieving_for_wrong_user(auth_method, make_hc_config, hc_wrong_account):
+    plugin = Plugin(make_hc_config(auth_method))
 
     result = plugin.get_password_list(
         cookie={},

@@ -46,8 +46,9 @@ def configured_plugin():
     return Plugin(config)
 
 
+@patch('lib.client.Client._determine_vault_to_use', return_vaule='https://test.vault:8200')
 @patch('lib.client.Client.get_secret', return_value='password')
-def test_do_get_password_list(client, configured_plugin):
+def test_do_get_password_list(client, _, configured_plugin):
     username = 'wsmith'
     password_list = configured_plugin.get_password_list(
         cookie=dict(),
@@ -63,8 +64,9 @@ def test_do_get_password_list(client, configured_plugin):
     )
 
 
+@patch('lib.client.Client._determine_vault_to_use', return_vaule='https://test.vault:8200')
 @patch('lib.client.Client.get_secret', return_value=None)
-def test_getting_password_for_unknown_user(client, configured_plugin):
+def test_getting_password_for_unknown_user(client, _, configured_plugin):
     password_list = configured_plugin.get_password_list(
         cookie=dict(),
         session_cookie=dict(),
