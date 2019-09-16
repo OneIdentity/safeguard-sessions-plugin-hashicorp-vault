@@ -64,6 +64,49 @@ def test_do_get_password_list(client, _, configured_plugin):
     )
 
 
+
+@patch('lib.client.Client._determine_vault_to_use', return_vaule='https://test.vault:8200')
+@patch('lib.client.Client.get_secret', return_value=('-----BEGIN RSA PRIVATE KEY-----\n'
+                                                     'my key\n'
+                                                     '-----END RSA PRIVATE KEY-----'))
+def test_do_get_privatekey_list(client, _, configured_plugin):
+    username = 'wsmith'
+    password_list = configured_plugin.get_private_key_list(
+        cookie=dict(),
+        session_cookie=dict(),
+        target_username=username,
+        protocol='SSH'
+    )
+    client.assert_called_with(username)
+    assert_plugin_hook_result(
+        password_list,
+        dict(cookie=dict(account=username, asset=None),
+             private_keys=[('ssh-rsa', ('-----BEGIN RSA PRIVATE KEY-----\n'
+                                        'my key\n'
+                                        '-----END RSA PRIVATE KEY-----'))])
+    )
+
+
+@patch('lib.client.Client._determine_vault_to_use', return_vaule='https://test.vault:8200')
+@patch('lib.client.Client.get_secret', return_value=('-----BEGIN UNKNOWN PRIVATE KEY-----\n'
+                                                     'my key\n'
+                                                     '-----END UNKNOWN PRIVATE KEY-----'))
+def test_do_get_privatekey_list_for_unsupported_private_keys(client, _, configured_plugin):
+    username = 'wsmith'
+    private_key_list = configured_plugin.get_private_key_list(
+        cookie=dict(),
+        session_cookie=dict(),
+        target_username=username,
+        protocol='SSH'
+    )
+    client.assert_called_with(username)
+    assert_plugin_hook_result(
+        private_key_list,
+        dict(cookie=dict(account=None, asset=None),
+             private_keys=[])
+    )
+
+
 @patch('lib.client.Client._determine_vault_to_use', return_vaule='https://test.vault:8200')
 @patch('lib.client.Client.get_secret', return_value=None)
 def test_getting_password_for_unknown_user(client, _, configured_plugin):
@@ -77,4 +120,20 @@ def test_getting_password_for_unknown_user(client, _, configured_plugin):
         password_list,
         dict(cookie=dict(account=None, asset=None),
              passwords=[])
+    )
+
+
+@patch('lib.client.Client._determine_vault_to_use', return_vaule='https://test.vault:8200')
+@patch('lib.client.Client.get_secret', return_value=None)
+def test_getting_private_key_for_unknown_user(client, _, configured_plugin):
+    password_list = configured_plugin.get_private_key_list(
+        cookie=dict(),
+        session_cookie=dict(),
+        target_username='unknown',
+        protocol='SSH'
+    )
+    assert_plugin_hook_result(
+        password_list,
+        dict(cookie=dict(account=None, asset=None),
+             private_keys=[])
     )

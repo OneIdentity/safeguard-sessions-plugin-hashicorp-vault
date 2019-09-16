@@ -44,11 +44,6 @@ def hc_vault_token(site_parameters):
 
 
 @pytest.fixture
-def hc_address(site_parameters):
-    return site_parameters['address']
-
-
-@pytest.fixture
 def hc_secret_path(site_parameters):
     return site_parameters['secrets_path']
 
@@ -66,6 +61,21 @@ def hc_account_password(site_parameters):
 @pytest.fixture
 def hc_wrong_account(site_parameters):
     return site_parameters['wrong_account']
+
+
+@pytest.fixture
+def hc_account_with_private_key(site_parameters):
+    return site_parameters['account_with_private_key']
+
+
+@pytest.fixture()
+def hc_account_private_key(site_parameters):
+    return site_parameters['account_private_key']
+
+
+@pytest.fixture()
+def hc_account_with_unsupported_key(site_parameters):
+    return site_parameters['account_with_unsupported_key']
 
 
 @pytest.fixture
@@ -93,7 +103,7 @@ def hc_config_approle_auth_engine_kv_v1(site_parameters):
 
 @pytest.fixture
 def make_hc_config(site_parameters):
-    def _make_config(auth_method):
+    def _make_config(auth_method, secrets_path=site_parameters['secrets_path']):
         return dedent("""
             [hashicorp]
             address = {address}
@@ -116,7 +126,7 @@ def make_hc_config(site_parameters):
             port=site_parameters['port'],
             role=site_parameters['role'],
             vault_token=site_parameters['vault_token'],
-            secrets_path=site_parameters['secrets_path'],
+            secrets_path=secrets_path,
             ldap_username=site_parameters['ldap_username'],
             ldap_password=site_parameters['ldap_password'],
             username=site_parameters['username'],

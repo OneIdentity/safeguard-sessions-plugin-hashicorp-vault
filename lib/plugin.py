@@ -25,6 +25,10 @@ from safeguard.sessions.plugin.credentialstore_plugin import CredentialStorePlug
 from .client import Client
 
 
+class InvalidPrivateKey(Exception):
+    pass
+
+
 class Plugin(CredentialStorePlugin):
 
     def __init__(self, configuration):
@@ -36,3 +40,21 @@ class Plugin(CredentialStorePlugin):
                                             self.connection.gateway_password)
         password = vault_client.get_secret(self.account)
         return {'passwords': [password] if password else []}
+
+    def do_get_private_key_list(self):
+        def determine_keytype(key):
+            if key.startswith('-----BEGIN RSA PRIVATE KEY-----'):
+                return 'ssh-rsa'
+            elif key.startswith('-----BEGIN DSA PRIVATE KEY-----'):
+                return 'ssh-dss'
+            else:
+                self.logger.error('Unsupported key type')
+
+        def get_supported_key(key):
+            return list(filter(lambda key_pair: key_pair[0], [(determine_keytype(key), key)]))
+
+        vault_client = Client.create_client(self.plugin_configuration,
+                                            self.connection.gateway_username,
+                                            self.connection.gateway_password)
+        key = vault_client.get_secret(self.account)
+        return {'private_keys': get_supported_key(key) if key else []}
