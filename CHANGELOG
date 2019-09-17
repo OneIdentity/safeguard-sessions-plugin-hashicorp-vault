@@ -1,6 +1,9 @@
 1.1.0 2019-09-12
 
 Add LDAP and userpass authentication methods
+Make possible to retrieve private keys
+Rename `hashicorp-vault` section to `hashicorp` in config
+Make password and private key field name configurable
 
 1.0.0 2019-06-11
 
