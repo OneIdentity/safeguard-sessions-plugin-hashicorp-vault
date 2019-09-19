@@ -83,7 +83,7 @@ class Client:
         return vault_url
 
     @classmethod
-    def create_client(cls, config, gw_user=None, gw_password=None):
+    def create_client(cls, config, gw_user=None, gw_password=None, secrets_path=None):
         requests_tls = RequestsTLS.from_config(config)
         vault_addresses = list(map(lambda va: va.strip(), config.get('hashicorp', 'address', required=True).split(',')))
         vault_port = config.getint('hashicorp', 'port', default=8200)
@@ -92,7 +92,9 @@ class Client:
 
         logger.info('Using Vault {}'.format(vault_url))
 
-        secrets_path = config.get('engine-kv-v1', 'secrets_path')
+        if not secrets_path:
+            secrets_path = config.get('engine-kv-v1', 'secrets_path')
+
         if secrets_path:
             secret_retriever = KVEngineV1SecretRetriever(vault_url, secrets_path)
         else:

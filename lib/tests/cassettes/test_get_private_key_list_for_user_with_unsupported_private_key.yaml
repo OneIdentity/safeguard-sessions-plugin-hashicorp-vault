@@ -9,14 +9,14 @@ interactions:
     method: GET
     uri: https://hc-vault.pamint.balabit:8200/v1/sys/health
   response:
-    body: {string: '{"initialized":true,"sealed":false,"standby":false,"performance_standby":false,"replication_performance_mode":"disabled","replication_dr_mode":"disabled","server_time_utc":1568893217,"version":"1.1.2","cluster_name":"vault-cluster-eba4a26a","cluster_id":"df107efd-43e2-b4a0-a0ac-939e3cead978"}
+    body: {string: '{"initialized":true,"sealed":false,"standby":false,"performance_standby":false,"replication_performance_mode":"disabled","replication_dr_mode":"disabled","server_time_utc":1568890529,"version":"1.1.2","cluster_name":"vault-cluster-eba4a26a","cluster_id":"df107efd-43e2-b4a0-a0ac-939e3cead978"}
 
         '}
     headers:
       Cache-Control: [no-store]
       Content-Length: ['294']
       Content-Type: [application/json]
-      Date: ['Thu, 19 Sep 2019 11:40:17 GMT']
+      Date: ['Thu, 19 Sep 2019 10:55:29 GMT']
     status: {code: 200, message: OK}
 - request:
     body: null
@@ -29,14 +29,14 @@ interactions:
     method: GET
     uri: https://hc-vault.pamint.balabit:8200/v1/auth/approle/role/my-role/role-id
   response:
-    body: {string: '{"request_id":"0f701eb0-09c0-1639-e402-409e7c53d422","lease_id":"","renewable":false,"lease_duration":0,"data":{"role_id":"522d06bf-1242-d168-c275-c3d597bf0513"},"wrap_info":null,"warnings":null,"auth":null}
+    body: {string: '{"request_id":"989faf87-6db3-0028-b221-6a2a116eebab","lease_id":"","renewable":false,"lease_duration":0,"data":{"role_id":"522d06bf-1242-d168-c275-c3d597bf0513"},"wrap_info":null,"warnings":null,"auth":null}
 
         '}
     headers:
       Cache-Control: [no-store]
       Content-Length: ['208']
       Content-Type: [application/json]
-      Date: ['Thu, 19 Sep 2019 11:40:17 GMT']
+      Date: ['Thu, 19 Sep 2019 10:55:30 GMT']
     status: {code: 200, message: OK}
 - request:
     body: null
@@ -50,17 +50,17 @@ interactions:
     method: POST
     uri: https://hc-vault.pamint.balabit:8200/v1/auth/approle/role/my-role/secret-id
   response:
-    body: {string: '{"request_id":"4f8a037e-0fa1-ce29-92bc-68d5e6170b3f","lease_id":"","renewable":false,"lease_duration":0,"data":{"secret_id":"c43a3f9b-2ad7-2abd-c6ec-9c8e022c85e2","secret_id_accessor":"e44e721f-93af-5867-49e8-c89be66000f0"},"wrap_info":null,"warnings":null,"auth":null}
+    body: {string: '{"request_id":"4206bfb2-7aed-64fd-109d-96123db48214","lease_id":"","renewable":false,"lease_duration":0,"data":{"secret_id":"0c174bbf-951a-b0da-4236-71ca779f8d0c","secret_id_accessor":"f145dd10-b2b8-aa95-06b3-55c7fe89c4d9"},"wrap_info":null,"warnings":null,"auth":null}
 
         '}
     headers:
       Cache-Control: [no-store]
       Content-Length: ['270']
       Content-Type: [application/json]
-      Date: ['Thu, 19 Sep 2019 11:40:17 GMT']
+      Date: ['Thu, 19 Sep 2019 10:55:30 GMT']
     status: {code: 200, message: OK}
 - request:
-    body: '{"role_id": "522d06bf-1242-d168-c275-c3d597bf0513", "secret_id": "c43a3f9b-2ad7-2abd-c6ec-9c8e022c85e2"}'
+    body: '{"role_id": "522d06bf-1242-d168-c275-c3d597bf0513", "secret_id": "0c174bbf-951a-b0da-4236-71ca779f8d0c"}'
     headers:
       Accept: ['*/*']
       Accept-Encoding: ['gzip, deflate']
@@ -71,14 +71,14 @@ interactions:
     method: POST
     uri: https://hc-vault.pamint.balabit:8200/v1/auth/approle/login
   response:
-    body: {string: '{"request_id":"4883c33c-d141-4af4-30bc-f58a89bfbcd8","lease_id":"","renewable":false,"lease_duration":0,"data":null,"wrap_info":null,"warnings":null,"auth":{"client_token":"s.75CMndqdQHpw9zg0TX9UiVyQ","accessor":"W0FYjXHyuZpGZEh2BoJIwmdQ","policies":["default","kv_admins"],"token_policies":["default","kv_admins"],"metadata":{"role_name":"my-role"},"lease_duration":1200,"renewable":true,"entity_id":"96a80de5-fe30-8a8b-d6b0-c075eb03ec83","token_type":"service","orphan":true}}
+    body: {string: '{"request_id":"97d6d4cf-3caf-8712-a06b-ac071c98cf70","lease_id":"","renewable":false,"lease_duration":0,"data":null,"wrap_info":null,"warnings":null,"auth":{"client_token":"s.Xi6fnOoN7nQ5Sxj1JDBpMOk3","accessor":"h8v9NKIYIPuvtXQrWbQdq1Qw","policies":["default","kv_admins"],"token_policies":["default","kv_admins"],"metadata":{"role_name":"my-role"},"lease_duration":1200,"renewable":true,"entity_id":"96a80de5-fe30-8a8b-d6b0-c075eb03ec83","token_type":"service","orphan":true}}
 
         '}
     headers:
       Cache-Control: [no-store]
       Content-Length: ['479']
       Content-Type: [application/json]
-      Date: ['Thu, 19 Sep 2019 11:40:17 GMT']
+      Date: ['Thu, 19 Sep 2019 10:55:30 GMT']
     status: {code: 200, message: OK}
 - request:
     body: null
@@ -87,41 +87,19 @@ interactions:
       Accept-Encoding: ['gzip, deflate']
       Connection: [keep-alive]
       User-Agent: [python-requests/2.18.4]
-      X-Vault-Token: [s.75CMndqdQHpw9zg0TX9UiVyQ]
+      X-Vault-Token: [s.Xi6fnOoN7nQ5Sxj1JDBpMOk3]
     method: GET
-    uri: https://hc-vault.pamint.balabit:8200/v1//passwords/users
+    uri: https://hc-vault.pamint.balabit:8200/v1/passwords/wsmith
   response:
-    body: {string: '<a href="/v1/passwords/users">Moved Permanently</a>.
-
+    body: {string: '{"request_id":"e5e8fb06-f0da-ce4f-5ec0-a2eb366947d6","lease_id":"","renewable":false,"lease_duration":2764800,"data":{"key":"-----BEGIN
+        RSA PRIVATE KEY-----\nmy key\n-----END RSA PRIVATE KEY-----","password":"titkos","unsupported_key":"-----BEGIN
+        NOT SUPPORTED PRIVATE KEY-----\nmy key\n-----END NOT SUPPORTED PRIVATE KEY-----"},"wrap_info":null,"warnings":null,"auth":null}
 
         '}
     headers:
       Cache-Control: [no-store]
-      Content-Length: ['54']
-      Content-Type: [text/html; charset=utf-8]
-      Date: ['Thu, 19 Sep 2019 11:40:17 GMT']
-      Location: [/v1/passwords/users]
-    status: {code: 301, message: Moved Permanently}
-- request:
-    body: null
-    headers:
-      Accept: ['*/*']
-      Accept-Encoding: ['gzip, deflate']
-      Connection: [keep-alive]
-      User-Agent: [python-requests/2.18.4]
-      X-Vault-Token: [s.75CMndqdQHpw9zg0TX9UiVyQ]
-    method: GET
-    uri: https://hc-vault.pamint.balabit:8200/v1/passwords/users
-  response:
-    body: {string: '{"request_id":"3ce6a30c-c11e-ed88-9f9e-1012a3f51c44","lease_id":"","renewable":false,"lease_duration":2764800,"data":{"root":"titkos","user_with_key":"-----BEGIN
-        RSA PRIVATE KEY-----\nmy key\n-----END RSA PRIVATE KEY-----","user_with_not_supported_key":"-----BEGIN
-        UNSUPPORTED PRIVATE KEY-----\nmy key\n-----END UNSUPPORTED PRIVATE KEY-----","wsmith":"titkos"},"wrap_info":null,"warnings":null,"auth":null}
-
-        '}
-    headers:
-      Cache-Control: [no-store]
-      Content-Length: ['407']
+      Content-Length: ['375']
       Content-Type: [application/json]
-      Date: ['Thu, 19 Sep 2019 11:40:17 GMT']
+      Date: ['Thu, 19 Sep 2019 10:55:30 GMT']
     status: {code: 200, message: OK}
 version: 1

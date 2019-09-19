@@ -56,7 +56,7 @@ def test_do_get_password_list(client, _, configured_plugin):
         target_username=username,
         protocol='SSH'
     )
-    client.assert_called_with(username)
+    client.assert_called_with('password')
     assert_plugin_hook_result(
         password_list,
         dict(cookie=dict(account=username, asset=None),
@@ -77,7 +77,7 @@ def test_do_get_privatekey_list(client, _, configured_plugin):
         target_username=username,
         protocol='SSH'
     )
-    client.assert_called_with(username)
+    client.assert_called_with('key')
     assert_plugin_hook_result(
         password_list,
         dict(cookie=dict(account=username, asset=None),
@@ -99,7 +99,7 @@ def test_do_get_privatekey_list_for_unsupported_private_keys(client, _, configur
         target_username=username,
         protocol='SSH'
     )
-    client.assert_called_with(username)
+    client.assert_called_with('key')
     assert_plugin_hook_result(
         private_key_list,
         dict(cookie=dict(account=None, asset=None),
@@ -137,3 +137,13 @@ def test_getting_private_key_for_unknown_user(client, _, configured_plugin):
         dict(cookie=dict(account=None, asset=None),
              private_keys=[])
     )
+
+
+@patch('lib.client.Client._determine_vault_to_use', return_vaule='https://test.vault:8200')
+@patch('lib.client.Client.create_client')
+def test_secrets_path_got_from_session_cookie(client, determine_vault_to_use, make_hc_config):
+    config = make_hc_config(auth_method='ldap', secrets_path='')
+    session_cookie = {'questions': {'vp': 'my/path'}}
+    plugin = Plugin(config)
+    plugin.get_password_list(cookie={}, session_cookie=session_cookie, target_username='wsmith', protocol='SSH')
+    assert session_cookie.get('questions').get('my/path') in client.call_args[0]

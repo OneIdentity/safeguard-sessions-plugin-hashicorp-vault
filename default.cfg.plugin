@@ -24,6 +24,14 @@
 # The password used to authenticate with
 ; password=<password>
 
+# From which value field to retrieve the password secret from
+# Default is password
+;password_field=password
+
+# From which value field to retrieve the SSH private key secret from
+# Default is key
+;key_field=key
+
 [engine-kv-v1]
 # Path of endpoint where the users and passwords are stored
 # as secrets (key: username, value: password).

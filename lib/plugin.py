@@ -25,20 +25,19 @@ from safeguard.sessions.plugin.credentialstore_plugin import CredentialStorePlug
 from .client import Client
 
 
-class InvalidPrivateKey(Exception):
-    pass
-
-
 class Plugin(CredentialStorePlugin):
 
     def __init__(self, configuration):
         super().__init__(configuration)
 
     def do_get_password_list(self):
+        secret_path = self.session_cookie.get('questions', {}).get('vp')
         vault_client = Client.create_client(self.plugin_configuration,
                                             self.connection.gateway_username,
-                                            self.connection.gateway_password)
-        password = vault_client.get_secret(self.account)
+                                            self.connection.gateway_password,
+                                            secret_path)
+        secret_field = self.plugin_configuration.get('hashicorp', 'password_field', default='password')
+        password = vault_client.get_secret(secret_field)
         return {'passwords': [password] if password else []}
 
     def do_get_private_key_list(self):
@@ -53,8 +52,11 @@ class Plugin(CredentialStorePlugin):
         def get_supported_key(key):
             return list(filter(lambda key_pair: key_pair[0], [(determine_keytype(key), key)]))
 
+        secret_path = self.session_cookie.get('questions', {}).get('vp')
         vault_client = Client.create_client(self.plugin_configuration,
                                             self.connection.gateway_username,
-                                            self.connection.gateway_password)
-        key = vault_client.get_secret(self.account)
+                                            self.connection.gateway_password,
+                                            secret_path)
+        secret_field = self.plugin_configuration.get('hashicorp', 'key_field', default='key')
+        key = vault_client.get_secret(secret_field)
         return {'private_keys': get_supported_key(key) if key else []}
