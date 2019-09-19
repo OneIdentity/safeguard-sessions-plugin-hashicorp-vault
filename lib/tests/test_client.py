@@ -30,7 +30,14 @@ from contextlib import contextmanager
 
 from safeguard.sessions.plugin.plugin_configuration import PluginConfiguration
 
-from ..client import Client, VaultException, AppRoleAuthenticator, PasswordTypeAuthenticator, KVEngineV1SecretRetriever
+from ..client import (
+    Client,
+    VaultException,
+    AppRoleAuthenticator,
+    PasswordTypeAuthenticator,
+    KVEngineV1SecretRetriever,
+    CredentialsCannotBeDeterminedException
+)
 
 Response = namedtuple('Response', 'ok text')
 
@@ -265,7 +272,7 @@ def test_cannot_connect_to_vault():
 
 
 def data_provider():
-    yield ('ldap', PasswordTypeAuthenticator, 'use_credential=explicit\nldap_username=user\nldap_password=pass')
+    yield ('ldap', PasswordTypeAuthenticator, 'use_credential=explicit\nusername=user\npassword=pass')
     yield ('userpass', PasswordTypeAuthenticator, 'use_credential=explicit\nusername=user\npassword=pass')
     yield ('approle', AppRoleAuthenticator, '')
 
@@ -287,13 +294,21 @@ def test_client_uses_the_appropriate_authenticator(_requests_tls, auth_method, i
 
 
 def authenticator_password_cases():
-    yield ('use_credential=explicit\nldap_username=user\nldap_password=pass', ('user', 'pass', 'ldap'))
-    yield ('use_credential=gateway', (None, None, 'ldap'))
+    yield (
+        'use_credential=explicit\nusername=user\npassword=pass',
+        {'gw_user': None, 'gw_password': None},
+        ('user', 'pass', 'ldap')
+    )
+    yield (
+        'use_credential=gateway',
+        {'gw_user': 'my_gw_user', 'gw_password': 'my_gw_password'},
+        ('my_gw_user', 'my_gw_password', 'ldap')
+    )
 
 
-@pytest.mark.parametrize('extra_conf, expected', authenticator_password_cases())
+@pytest.mark.parametrize('extra_conf, users, expected', authenticator_password_cases())
 @patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
-def test_authenticator_calculates_username_and_password_according_to_config(_requests_tls, mocker, extra_conf, expected):
+def test_authenticator_calculates_username_and_password_according_to_config(_requests_tls, mocker, extra_conf, users, expected):
     SESSION.get.side_effect = GET_RESPONSES
     vault_address = 'https://{}:{}'.format(ADDRESS, PORT)
     config = PluginConfiguration(
@@ -304,7 +319,7 @@ def test_authenticator_calculates_username_and_password_according_to_config(_req
         HASHICORP_VAULT_KV_V1_CONFIG
     )
     mocker.spy(PasswordTypeAuthenticator, '__init__')
-    client = Client.create_client(config)
+    client = Client.create_client(config, **users)
     client.authenticator.__init__.assert_called_with(
         client.authenticator,
         vault_address,
@@ -319,9 +334,48 @@ def test_raises_vault_error_when_cannot_make_connection_to_vault(_requests_tls):
         hashicorp_vault_config(
             address='vault.is.down',
             auth_method='ldap',
-            extra_parts='use_credential=explicit\nldap_username=user\nldap_password=pass') +
+            extra_parts='use_credential=explicit\nusername=user\npassword=pass') +
         HASHICORP_VAULT_APPROLE_AUTH_CONFIG +
         HASHICORP_VAULT_KV_V1_CONFIG
     )
     with raises(VaultException):
         Client.create_client(config)
+
+
+@patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
+def test_uses_first_available_vault_address_when_more_configured(_requests_tls, mocker):
+    SESSION.get.side_effect = [ConnectionError(), GET_RESPONSES[-1]]
+    config = PluginConfiguration(
+        hashicorp_vault_config(
+            address='vault.is.down,test.vault',
+            auth_method='ldap',
+            extra_parts='use_credential=gateway') +
+        HASHICORP_VAULT_APPROLE_AUTH_CONFIG +
+        HASHICORP_VAULT_KV_V1_CONFIG
+    )
+    mocker.spy(PasswordTypeAuthenticator, '__init__')
+
+    client = Client.create_client(config, 'myuser', 'mypassword')
+    client.authenticator.__init__.assert_called_with(
+        client.authenticator,
+        'https://test.vault:{}'.format(PORT),
+        'myuser',
+        'mypassword',
+        'ldap'
+    )
+
+
+@patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
+def test_raises_exception_when_cannot_determine_vault_credentials(_requests_tls):
+    SESSION.get.side_effect = GET_RESPONSES
+    vault_address = 'https://{}:{}'.format(ADDRESS, PORT)
+    config = PluginConfiguration(
+        hashicorp_vault_config(
+            address=vault_address,
+            auth_method='ldap',
+            extra_parts='use_credential=gateway') +
+        HASHICORP_VAULT_APPROLE_AUTH_CONFIG +
+        HASHICORP_VAULT_KV_V1_CONFIG
+    )
+    with raises(CredentialsCannotBeDeterminedException):
+        Client.create_client(config, gw_user='my_gw_user')

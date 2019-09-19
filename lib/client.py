@@ -20,17 +20,22 @@
 # IN THE SOFTWARE.
 #
 from functools import reduce
-import logging
 import requests
 import json
 import abc
 from safeguard.sessions.plugin.requests_tls import RequestsTLS
+from safeguard.sessions.plugin.logging import get_logger
+from safeguard.sessions.plugin import PluginSDKRuntimeError
 
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class VaultException(Exception):
+    pass
+
+
+class CredentialsCannotBeDeterminedException(PluginSDKRuntimeError):
     pass
 
 
@@ -80,7 +85,7 @@ class Client:
     @classmethod
     def create_client(cls, config, gw_user=None, gw_password=None):
         requests_tls = RequestsTLS.from_config(config)
-        vault_addresses = config.get('hashicorp', 'address', required=True).split(',')
+        vault_addresses = list(map(lambda va: va.strip(), config.get('hashicorp', 'address', required=True).split(',')))
         vault_port = config.getint('hashicorp', 'port', default=8200)
 
         vault_url = cls._determine_vault_to_use(requests_tls, vault_addresses, vault_port)
@@ -93,28 +98,30 @@ class Client:
         else:
             raise VaultException('No valid secrets engine can be determined based on config')
 
-        authenticator = AuthenticatorFactory.provide_authenticator(config, vault_url, gw_user, gw_password)
+        authenticator = AuthenticatorFactory.create_authenticator(config, vault_url, gw_user, gw_password)
         return cls(requests_tls, authenticator, secret_retriever)
 
 
 class AuthenticatorFactory:
 
     @classmethod
-    def provide_authenticator(cls, config, vault_url, gw_user=None, gw_password=None):
+    def create_authenticator(cls, config, vault_url, gw_user=None, gw_password=None):
         auth_method = config.getienum(
             'hashicorp',
             'authentication_method',
             ('ldap', 'userpass', 'approle'),
             required=True)
         logger.debug('Authenticating to vault with method: {}'.format(auth_method))
-        if auth_method == 'ldap':
-            username = cls.credential_from_config(config, 'ldap_username') or gw_user
-            password = cls.credential_from_config(config, 'ldap_password') or gw_password
-            authenticator = PasswordTypeAuthenticator(vault_url, username, password, 'ldap')
-        elif auth_method == 'userpass':
+        if auth_method in ('ldap', 'userpass'):
             username = cls.credential_from_config(config, 'username') or gw_user
             password = cls.credential_from_config(config, 'password') or gw_password
-            authenticator = PasswordTypeAuthenticator(vault_url, username, password, 'userpass')
+            if username and password:
+                authenticator = PasswordTypeAuthenticator(vault_url, username, password, auth_method)
+            else:
+                raise CredentialsCannotBeDeterminedException(
+                    'Cannot determine credentials for Vault',
+                    variables={'username': username, 'password': '<password>' if password else 'N/A'}
+                )
         elif auth_method == 'approle':
             role = config.get('approle-authentication', 'role', required=True)
             vault_token = config.get('approle-authentication', 'vault_token')
@@ -125,7 +132,7 @@ class AuthenticatorFactory:
     def credential_from_config(config, option_name):
         return (
             config.get('hashicorp', option_name, required=True)
-            if config.get('hashicorp', 'use_credential', required=True) == 'explicit'
+            if config.getienum('hashicorp', 'use_credential', ('explicit', 'gateway'), required=True) == 'explicit'
             else None
         )
 
@@ -223,10 +230,6 @@ class PasswordTypeAuthenticator(Authenticator):
             data={'password': self.__password}
         )
         return client_token
-
-
-class CertificateAuthenticator:
-    pass
 
 
 def _extract_data_from_endpoint(session, endpoint_url, data_path, token, method, data=None):

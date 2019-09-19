@@ -104,14 +104,20 @@ def hc_config_approle_auth_engine_kv_v1(site_parameters):
 @pytest.fixture
 def make_hc_config(site_parameters):
     def _make_config(auth_method, secrets_path=site_parameters['secrets_path']):
+        username = password = None
+        if auth_method == 'ldap':
+            username = site_parameters['ldap_username']
+            password = site_parameters['ldap_password']
+        elif auth_method == 'userpass':
+            username = site_parameters['username']
+            password = site_parameters['password']
+
         return dedent("""
             [hashicorp]
             address = {address}
             port = {port}
             authentication_method = {auth_method}
             use_credential=explicit
-            ldap_username={ldap_username}
-            ldap_password={ldap_password}
             username={username}
             password={password}
 
@@ -127,10 +133,8 @@ def make_hc_config(site_parameters):
             role=site_parameters['role'],
             vault_token=site_parameters['vault_token'],
             secrets_path=secrets_path,
-            ldap_username=site_parameters['ldap_username'],
-            ldap_password=site_parameters['ldap_password'],
-            username=site_parameters['username'],
-            password=site_parameters['password'],
+            username=username,
+            password=password,
             auth_method=auth_method
         ))
     return _make_config
