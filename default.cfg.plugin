@@ -1,0 +1,39 @@
+[hashicorp]
+# The address or hostname of the Hashicorp Vault.
+# A list of address can be configured separated by ','
+; address=<address>
+
+# Port of the Hashicorp Vault.
+# Default is 8200.
+; port=8200
+
+# The authentication method to use to connect
+# to the vault.
+# Values can be ldap, userpass
+; authentication_method=<authentication_method>
+
+# Defines which credentials to use
+# Possible values are: expilict or gateway
+# In case of explicit the username and password need to be configured
+# Default is gateway
+; use_credential=gateway
+
+# The username used to authenticate with
+; username=<username>
+
+# The password used to authenticate with
+; password=<password>
+
+# From which value field to retrieve the password secret from
+# Default is password
+;password_field=password
+
+# From which value field to retrieve the SSH private key secret from
+# Default is key
+;key_field=key
+
+[engine-kv-v1]
+# Path of endpoint where the users and passwords are stored
+# as secrets (key: username, value: password).
+# e.g. secrets/users
+; secrets_path=<path>

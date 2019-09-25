@@ -44,11 +44,6 @@ def hc_vault_token(site_parameters):
 
 
 @pytest.fixture
-def hc_address(site_parameters):
-    return site_parameters['address']
-
-
-@pytest.fixture
 def hc_secret_path(site_parameters):
     return site_parameters['secrets_path']
 
@@ -69,11 +64,27 @@ def hc_wrong_account(site_parameters):
 
 
 @pytest.fixture
-def hc_config_engine_kv_v1(site_parameters):
+def hc_account_with_private_key(site_parameters):
+    return site_parameters['account_with_private_key']
+
+
+@pytest.fixture()
+def hc_account_private_key(site_parameters):
+    return site_parameters['account_private_key']
+
+
+@pytest.fixture()
+def hc_account_with_unsupported_key(site_parameters):
+    return site_parameters['account_with_unsupported_key']
+
+
+@pytest.fixture
+def hc_config_approle_auth_engine_kv_v1(site_parameters):
     yield dedent("""
-        [hashicorp-vault]
+        [hashicorp]
         address = {address}
         port = {port}
+        authentication_method = approle
 
         [approle-authentication]
         role = {role}
@@ -88,3 +99,45 @@ def hc_config_engine_kv_v1(site_parameters):
         vault_token=site_parameters['vault_token'],
         secrets_path=site_parameters['secrets_path'],
     ))
+
+
+@pytest.fixture
+def make_hc_config(site_parameters):
+    def _make_config(auth_method, secrets_path=site_parameters['secrets_path'], extra_conf=''):
+        username = password = None
+        if auth_method == 'ldap':
+            username = site_parameters['ldap_username']
+            password = site_parameters['ldap_password']
+        elif auth_method == 'userpass':
+            username = site_parameters['username']
+            password = site_parameters['password']
+
+        return dedent("""
+            [hashicorp]
+            address = {address}
+            port = {port}
+            authentication_method = {auth_method}
+            use_credential=explicit
+            username={username}
+            password={password}
+
+            {extra_conf}
+
+            [approle-authentication]
+            role = {role}
+            vault_token = {vault_token}
+
+            [engine-kv-v1]
+            secrets_path = {secrets_path}
+        """.format(
+            address=site_parameters['address'],
+            port=site_parameters['port'],
+            role=site_parameters['role'],
+            vault_token=site_parameters['vault_token'],
+            secrets_path=secrets_path,
+            username=username,
+            password=password,
+            auth_method=auth_method,
+            extra_conf=extra_conf
+        ))
+    return _make_config

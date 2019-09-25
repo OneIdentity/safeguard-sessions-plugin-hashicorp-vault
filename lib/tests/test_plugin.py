@@ -31,9 +31,10 @@ from ..plugin import Plugin
 @fixture
 def configured_plugin():
     config = dedent('''
-        [hashicorp-vault]
+        [hashicorp]
         address = test.vault
         port = 8200
+        authentication_method = approle
 
         [approle-authentication]
         role = testrole
@@ -45,8 +46,9 @@ def configured_plugin():
     return Plugin(config)
 
 
+@patch('lib.client.Client._determine_vault_to_use', return_vaule='https://test.vault:8200')
 @patch('lib.client.Client.get_secret', return_value='password')
-def test_do_get_password_list(client, configured_plugin):
+def test_do_get_password_list(client, _, configured_plugin):
     username = 'wsmith'
     password_list = configured_plugin.get_password_list(
         cookie=dict(),
@@ -54,7 +56,7 @@ def test_do_get_password_list(client, configured_plugin):
         target_username=username,
         protocol='SSH'
     )
-    client.assert_called_with(username)
+    client.assert_called_with('password')
     assert_plugin_hook_result(
         password_list,
         dict(cookie=dict(account=username, asset=None),
@@ -62,8 +64,52 @@ def test_do_get_password_list(client, configured_plugin):
     )
 
 
+
+@patch('lib.client.Client._determine_vault_to_use', return_vaule='https://test.vault:8200')
+@patch('lib.client.Client.get_secret', return_value=('-----BEGIN RSA PRIVATE KEY-----\n'
+                                                     'my key\n'
+                                                     '-----END RSA PRIVATE KEY-----'))
+def test_do_get_privatekey_list(client, _, configured_plugin):
+    username = 'wsmith'
+    password_list = configured_plugin.get_private_key_list(
+        cookie=dict(),
+        session_cookie=dict(),
+        target_username=username,
+        protocol='SSH'
+    )
+    client.assert_called_with('key')
+    assert_plugin_hook_result(
+        password_list,
+        dict(cookie=dict(account=username, asset=None),
+             private_keys=[('ssh-rsa', ('-----BEGIN RSA PRIVATE KEY-----\n'
+                                        'my key\n'
+                                        '-----END RSA PRIVATE KEY-----'))])
+    )
+
+
+@patch('lib.client.Client._determine_vault_to_use', return_vaule='https://test.vault:8200')
+@patch('lib.client.Client.get_secret', return_value=('-----BEGIN UNKNOWN PRIVATE KEY-----\n'
+                                                     'my key\n'
+                                                     '-----END UNKNOWN PRIVATE KEY-----'))
+def test_do_get_privatekey_list_for_unsupported_private_keys(client, _, configured_plugin):
+    username = 'wsmith'
+    private_key_list = configured_plugin.get_private_key_list(
+        cookie=dict(),
+        session_cookie=dict(),
+        target_username=username,
+        protocol='SSH'
+    )
+    client.assert_called_with('key')
+    assert_plugin_hook_result(
+        private_key_list,
+        dict(cookie=dict(account=None, asset=None),
+             private_keys=[])
+    )
+
+
+@patch('lib.client.Client._determine_vault_to_use', return_vaule='https://test.vault:8200')
 @patch('lib.client.Client.get_secret', return_value=None)
-def test_getting_password_for_unknown_user(client, configured_plugin):
+def test_getting_password_for_unknown_user(client, _, configured_plugin):
     password_list = configured_plugin.get_password_list(
         cookie=dict(),
         session_cookie=dict(),
@@ -75,3 +121,41 @@ def test_getting_password_for_unknown_user(client, configured_plugin):
         dict(cookie=dict(account=None, asset=None),
              passwords=[])
     )
+
+
+@patch('lib.client.Client._determine_vault_to_use', return_vaule='https://test.vault:8200')
+@patch('lib.client.Client.get_secret', return_value=None)
+def test_getting_private_key_for_unknown_user(client, _, configured_plugin):
+    password_list = configured_plugin.get_private_key_list(
+        cookie=dict(),
+        session_cookie=dict(),
+        target_username='unknown',
+        protocol='SSH'
+    )
+    assert_plugin_hook_result(
+        password_list,
+        dict(cookie=dict(account=None, asset=None),
+             private_keys=[])
+    )
+
+
+@patch('lib.client.Client._determine_vault_to_use', return_vaule='https://test.vault:8200')
+@patch('lib.client.Client.create_client')
+def test_secrets_path_got_from_session_cookie(client, determine_vault_to_use, make_hc_config):
+    config = make_hc_config(auth_method='ldap', secrets_path='')
+    session_cookie = {'questions': {'vp': 'my/path'}}
+    plugin = Plugin(config)
+    plugin.get_password_list(cookie={}, session_cookie=session_cookie, target_username='wsmith', protocol='SSH')
+    assert session_cookie.get('questions').get('my/path') in client.call_args[0]
+
+
+@patch('lib.client.Client._determine_vault_to_use', return_value='https://test.vault:8200')
+@patch('lib.client.Client.create_client')
+def test_secrets_path_get_calculated(client, determine_vault_to_use, configured_plugin):
+    password_list = configured_plugin.get_password_list(
+        cookie=dict(),
+        session_cookie=dict(),
+        target_username='my_super_target_user',
+        protocol='SSH'
+    )
+    assert configured_plugin.secret_path == 'kv/users/my_super_target_user'

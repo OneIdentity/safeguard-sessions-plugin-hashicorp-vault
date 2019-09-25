@@ -22,7 +22,7 @@
 
 from safeguard.sessions.plugin.credentialstore_plugin import CredentialStorePlugin
 
-from .client import ClientFactory
+from .client import Client
 
 
 class Plugin(CredentialStorePlugin):
@@ -31,6 +31,37 @@ class Plugin(CredentialStorePlugin):
         super().__init__(configuration)
 
     def do_get_password_list(self):
-        vault_client = ClientFactory.from_config(self.plugin_configuration).instantiate()
-        password = vault_client.get_secret(self.account)
+        vault_client = Client.create_client(self.plugin_configuration,
+                                            self.connection.gateway_username,
+                                            self.connection.gateway_password,
+                                            self.secret_path)
+        secret_field = self.plugin_configuration.get('hashicorp', 'password_field', default='password')
+        password = vault_client.get_secret(secret_field)
         return {'passwords': [password] if password else []}
+
+    def do_get_private_key_list(self):
+        def determine_keytype(key):
+            if key.startswith('-----BEGIN RSA PRIVATE KEY-----'):
+                return 'ssh-rsa'
+            elif key.startswith('-----BEGIN DSA PRIVATE KEY-----'):
+                return 'ssh-dss'
+            else:
+                self.logger.error('Unsupported key type')
+
+        def get_supported_key(key):
+            return list(filter(lambda key_pair: key_pair[0], [(determine_keytype(key), key)]))
+
+        vault_client = Client.create_client(self.plugin_configuration,
+                                            self.connection.gateway_username,
+                                            self.connection.gateway_password,
+                                            self.secret_path)
+        secret_field = self.plugin_configuration.get('hashicorp', 'key_field', default='key')
+        key = vault_client.get_secret(secret_field)
+        return {'private_keys': get_supported_key(key) if key else []}
+    
+    @property
+    def secret_path(self):
+        return (
+            self.session_cookie.get('questions', {}).get('vp') or
+             '{}/{}'.format(self.plugin_configuration.get('engine-kv-v1', 'secrets_path', required=True), self.account)
+        )
