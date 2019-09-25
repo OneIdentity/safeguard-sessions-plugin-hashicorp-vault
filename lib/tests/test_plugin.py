@@ -147,3 +147,15 @@ def test_secrets_path_got_from_session_cookie(client, determine_vault_to_use, ma
     plugin = Plugin(config)
     plugin.get_password_list(cookie={}, session_cookie=session_cookie, target_username='wsmith', protocol='SSH')
     assert session_cookie.get('questions').get('my/path') in client.call_args[0]
+
+
+@patch('lib.client.Client._determine_vault_to_use', return_value='https://test.vault:8200')
+@patch('lib.client.Client.create_client')
+def test_secrets_path_get_calculated(client, determine_vault_to_use, configured_plugin):
+    password_list = configured_plugin.get_password_list(
+        cookie=dict(),
+        session_cookie=dict(),
+        target_username='my_super_target_user',
+        protocol='SSH'
+    )
+    assert configured_plugin.secret_path == 'kv/users/my_super_target_user'

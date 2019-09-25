@@ -31,11 +31,10 @@ class Plugin(CredentialStorePlugin):
         super().__init__(configuration)
 
     def do_get_password_list(self):
-        secret_path = self.session_cookie.get('questions', {}).get('vp')
         vault_client = Client.create_client(self.plugin_configuration,
                                             self.connection.gateway_username,
                                             self.connection.gateway_password,
-                                            secret_path)
+                                            self.secret_path)
         secret_field = self.plugin_configuration.get('hashicorp', 'password_field', default='password')
         password = vault_client.get_secret(secret_field)
         return {'passwords': [password] if password else []}
@@ -52,11 +51,17 @@ class Plugin(CredentialStorePlugin):
         def get_supported_key(key):
             return list(filter(lambda key_pair: key_pair[0], [(determine_keytype(key), key)]))
 
-        secret_path = self.session_cookie.get('questions', {}).get('vp')
         vault_client = Client.create_client(self.plugin_configuration,
                                             self.connection.gateway_username,
                                             self.connection.gateway_password,
-                                            secret_path)
+                                            self.secret_path)
         secret_field = self.plugin_configuration.get('hashicorp', 'key_field', default='key')
         key = vault_client.get_secret(secret_field)
         return {'private_keys': get_supported_key(key) if key else []}
+    
+    @property
+    def secret_path(self):
+        return (
+            self.session_cookie.get('questions', {}).get('vp') or
+             '{}/{}'.format(self.plugin_configuration.get('engine-kv-v1', 'secrets_path', required=True), self.account)
+        )
