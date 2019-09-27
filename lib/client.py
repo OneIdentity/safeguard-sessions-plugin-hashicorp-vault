@@ -163,7 +163,7 @@ class KVEngineV1SecretRetriever(SecretRetriever):
 
 class Authenticator(abc.ABC):
 
-    @abc.abstractproperty
+    @abc.abstractmethod
     def authentication_backend(self):
         raise NotImplementedError
 
