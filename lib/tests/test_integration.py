@@ -70,3 +70,41 @@ def test_get_private_key_list_for_user_with_unsupported_private_key(make_hc_conf
         result,
         {'private_keys': []}
     )
+
+
+def test_get_private_key_list_with_non_existent_key_field(make_hc_config, hc_account, caplog):
+    config = make_hc_config('approle', extra_conf='key_field=does_not_exist')
+    plugin = Plugin(config)
+    result = plugin.get_private_key_list(
+        cookie={},
+        session_cookie={},
+        target_username=hc_account,
+        protocol='SSH'
+    )
+
+    assert_plugin_hook_result(
+        result,
+        {'private_keys': []}
+    )
+
+    assert "Error retrieving private keys" in caplog.text
+
+
+def test_get_password_list_with_wrong_path(make_hc_config, hc_account, caplog):
+    plugin = Plugin(make_hc_config('approle', secrets_path='does/not/exist'))
+
+    result = plugin.get_password_list(
+        cookie={},
+        session_cookie={},
+        target_username=hc_account,
+        protocol='SSH'
+    )
+
+    assert_plugin_hook_result(
+        result,
+        {'passwords': []}
+    )
+
+    assert "Error retrieving passwords" in caplog.text
+    assert "status_code='403'" in caplog.text
+    assert "status_text='Forbidden'" in caplog.text
