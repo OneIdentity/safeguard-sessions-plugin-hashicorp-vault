@@ -20,6 +20,7 @@
 # IN THE SOFTWARE.
 #
 from functools import reduce
+from http.client import responses
 import requests
 import json
 import abc
@@ -31,11 +32,15 @@ from safeguard.sessions.plugin import PluginSDKRuntimeError
 logger = get_logger(__name__)
 
 
-class VaultException(Exception):
+class VaultException(PluginSDKRuntimeError):
     pass
 
 
 class CredentialsCannotBeDeterminedException(PluginSDKRuntimeError):
+    pass
+
+
+class InvalidConfigurationError(PluginSDKRuntimeError):
     pass
 
 
@@ -98,7 +103,7 @@ class Client:
         if secrets_path:
             secret_retriever = KVEngineV1SecretRetriever(vault_url, secrets_path)
         else:
-            raise VaultException('No valid secrets engine can be determined based on config')
+            raise InvalidConfigurationError('No valid secrets engine can be determined based on config')
 
         authenticator = AuthenticatorFactory.create_authenticator(config, vault_url, gw_user, gw_password)
         return cls(requests_tls, authenticator, secret_retriever)
@@ -128,6 +133,8 @@ class AuthenticatorFactory:
             role = config.get('approle-authentication', 'role', required=True)
             vault_token = config.get('approle-authentication', 'vault_token')
             authenticator = AppRoleAuthenticator(vault_url, vault_token, role)
+        else:
+            raise InvalidConfigurationError('No valid authentication method can be determined based on config')
         return authenticator
 
     @staticmethod
@@ -247,8 +254,18 @@ def _extract_data_from_endpoint(session, endpoint_url, data_path, token, method,
     except requests.exceptions.ConnectionError as exc:
         raise VaultException('Connection error: {}'.format(exc))
     if response.ok:
-        logger.debug('Got correct response from endpoint: {}'.format(endpoint_url))
-        return reduce(dict.get, data_path.split('.'), json.loads(response.text))
+        def follow_path(d, path):
+            return d if not path else follow_path(d[path[0]], path[1:])
+        # not logging the response as it may contain sensitive data
+        logger.debug('Got 200 OK response from endpoint: {}'.format(endpoint_url))
+        try:
+            return follow_path(json.loads(response.text), data_path.split('.'))
+        except (KeyError, TypeError):
+            raise VaultException('Vault response did not contain the information', dict(data_path=data_path))
     else:
-        raise VaultException('Received error from Hashicorp Vault: {}'
-                             .format(json.loads(response.text).get('errors')[0]))
+        raise VaultException('Vault response status not ok', dict(
+            status_code=response.status_code,
+            status_text=responses.get(response.status_code, "UNKNOWN"),
+            endpoint_url=endpoint_url,
+            raw_response=response.text
+        ))

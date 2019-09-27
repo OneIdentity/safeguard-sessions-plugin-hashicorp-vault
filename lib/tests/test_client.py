@@ -32,6 +32,7 @@ from safeguard.sessions.plugin.plugin_configuration import PluginConfiguration
 
 from ..client import (
     Client,
+    InvalidConfigurationError,
     VaultException,
     AppRoleAuthenticator,
     PasswordTypeAuthenticator,
@@ -39,7 +40,7 @@ from ..client import (
     CredentialsCannotBeDeterminedException
 )
 
-Response = namedtuple('Response', 'ok text')
+Response = namedtuple('Response', 'ok text status_code')
 
 ADDRESS = 'vault-address'
 PORT = 1337
@@ -86,7 +87,7 @@ POST_RESPONSES = [
         'wrap_info': None,
         'warnings': None,
         'auth': None
-    }), ok=True),
+    }), ok=True, status_code=200),
     Response(text=json.dumps({
         'request_id': 'c0047be1-ce15-e7cd-3abb-bdba02888783',
         'lease_id': '',
@@ -117,34 +118,10 @@ POST_RESPONSES = [
             'token_type': 'service',
             'orphan': True
         }
-    }), ok=True),
+    }), ok=True, status_code=200),
 ]
 
 GET_RESPONSES = [
-    Response(text=json.dumps({
-        'request_id': '39dcab3e-6890-fbf4-460b-d3f1f49df2b3',
-        'lease_id': '',
-        'renewable': False,
-        'lease_duration': 0,
-        'data': {
-            'role_id': ROLE_ID
-        },
-        'wrap_info': None,
-        'warnings': None,
-        'auth': None
-    }), ok=True),
-    Response(text=json.dumps({
-        'request_id': '969945d0-e8b2-f154-8ca9-9ebca3c25b1e',
-        'lease_id': '',
-        'renewable': False,
-        'lease_duration': 2764800,
-        'data': {
-            SECRET_KEY: SECRET
-        },
-        'wrap_info': None,
-        'warnings': None,
-        'auth': None
-    }), ok=True),
     Response(text=json.dumps({
         'initialized': True,
         'sealed': False,
@@ -156,12 +133,48 @@ GET_RESPONSES = [
         'version': '1.1.2',
         'cluster_name': 'vault-cluster-eba4a26a',
         'cluster_id': 'df107efd-43e2-b4a0-a0ac-939e3cead978'}
-    ), ok=True)
+    ), ok=True, status_code=200),
+    Response(text=json.dumps({
+        'request_id': '39dcab3e-6890-fbf4-460b-d3f1f49df2b3',
+        'lease_id': '',
+        'renewable': False,
+        'lease_duration': 0,
+        'data': {
+            'role_id': ROLE_ID
+        },
+        'wrap_info': None,
+        'warnings': None,
+        'auth': None
+    }), ok=True, status_code=200),
+    Response(text=json.dumps({
+        'request_id': '969945d0-e8b2-f154-8ca9-9ebca3c25b1e',
+        'lease_id': '',
+        'renewable': False,
+        'lease_duration': 2764800,
+        'data': {
+            SECRET_KEY: SECRET
+        },
+        'wrap_info': None,
+        'warnings': None,
+        'auth': None
+    }), ok=True, status_code=200),
 ]
 
-ERROR_RESPONSE = Response(text=json.dumps({
+ERROR_RESPONSE_NOT_FOUND = Response(text=json.dumps({
     'errors': ['This is a generic error']
-}), ok=False)
+}), ok=False, status_code=404)
+
+
+ERROR_RESPONSE_NO_SUCH_FIELD = Response(text=json.dumps({
+    'request_id': '969945d0-e8b2-f154-8ca9-9ebca3c25b1e',
+    'lease_id': '',
+    'renewable': False,
+    'lease_duration': 2764800,
+    'data': {},
+    'wrap_info': None,
+    'warnings': None,
+    'auth': None
+}), ok=True, status_code=200)
 
 
 @contextmanager
@@ -213,6 +226,7 @@ def test_client_can_be_instantiated_with_config(_requests_tls, mocker):
 
 @patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
 def test_client_factory_uses_HTTPS_when_TLS_enabled(_requests_tls, mocker):
+    SESSION.get.side_effect = GET_RESPONSES
     REQUESTS_TLS.tls_enabled = True
     https_url = 'https://{}:{}'.format(ADDRESS, PORT)
     config = PluginConfiguration(hashicorp_vault_config() +
@@ -230,13 +244,13 @@ def test_client_factory_raises_exception_if_secrets_engine_cannot_be_determined(
     SESSION.get.side_effect = GET_RESPONSES
     config = PluginConfiguration(hashicorp_vault_config() +
                                  HASHICORP_VAULT_APPROLE_AUTH_CONFIG)
-    with raises(VaultException):
+    with raises(InvalidConfigurationError):
         Client.create_client(config)
 
 
 def test_get_secret_by_key():
     SESSION.post.side_effect = POST_RESPONSES
-    SESSION.get.side_effect = GET_RESPONSES
+    SESSION.get.side_effect = GET_RESPONSES[1:]
     expected_headers = {'X-Vault-Token': VAULT_TOKEN}
     expected_calls_to_get = [
         call(ROLE_ID_ENDPOINT, headers=expected_headers),
@@ -258,10 +272,20 @@ def test_get_secret_by_key():
 
 def test_error_occurs_when_getting_secret():
     SESSION.post.side_effect = POST_RESPONSES
-    SESSION.get.side_effect = [GET_RESPONSES[0], ERROR_RESPONSE]
+    SESSION.get.side_effect = [GET_RESPONSES[1], ERROR_RESPONSE_NOT_FOUND]
     client = Client(REQUESTS_TLS, AUTHENTICATOR, SECRET_RETRIEVER)
-    with raises(VaultException):
+    with raises(VaultException) as exc:
         client.get_secret(key=SECRET_KEY)
+    assert exc.match("Vault response status not ok.*Not Found")
+
+
+def test_error_occurs_when_extracting_secret():
+    SESSION.post.side_effect = POST_RESPONSES
+    SESSION.get.side_effect = [GET_RESPONSES[1], ERROR_RESPONSE_NO_SUCH_FIELD]
+    client = Client(REQUESTS_TLS, AUTHENTICATOR, SECRET_RETRIEVER)
+    with raises(VaultException) as exc:
+        client.get_secret(key=SECRET_KEY)
+    assert exc.match("Vault response did not contain the information")
 
 
 def test_cannot_connect_to_vault():
@@ -344,7 +368,7 @@ def test_raises_vault_error_when_cannot_make_connection_to_vault(_requests_tls):
 
 @patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
 def test_uses_first_available_vault_address_when_more_configured(_requests_tls, mocker):
-    SESSION.get.side_effect = [ConnectionError(), GET_RESPONSES[-1]]
+    SESSION.get.side_effect = [ConnectionError(), GET_RESPONSES[0]]
     config = PluginConfiguration(
         hashicorp_vault_config(
             address='vault.is.down,test.vault',
@@ -368,10 +392,8 @@ def test_uses_first_available_vault_address_when_more_configured(_requests_tls, 
 @patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
 def test_raises_exception_when_cannot_determine_vault_credentials(_requests_tls):
     SESSION.get.side_effect = GET_RESPONSES
-    vault_address = 'https://{}:{}'.format(ADDRESS, PORT)
     config = PluginConfiguration(
         hashicorp_vault_config(
-            address=vault_address,
             auth_method='ldap',
             extra_parts='use_credential=gateway') +
         HASHICORP_VAULT_APPROLE_AUTH_CONFIG +

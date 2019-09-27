@@ -19,7 +19,7 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 #
-
+from safeguard.sessions.plugin import PluginSDKRuntimeError
 from safeguard.sessions.plugin.credentialstore_plugin import CredentialStorePlugin
 
 from .client import Client
@@ -31,13 +31,17 @@ class Plugin(CredentialStorePlugin):
         super().__init__(configuration)
 
     def do_get_password_list(self):
-        vault_client = Client.create_client(self.plugin_configuration,
-                                            self.connection.gateway_username,
-                                            self.connection.gateway_password,
-                                            self.secret_path)
-        secret_field = self.plugin_configuration.get('hashicorp', 'password_field', default='password')
-        password = vault_client.get_secret(secret_field)
-        return {'passwords': [password] if password else []}
+        try:
+            vault_client = Client.create_client(self.plugin_configuration,
+                                                self.connection.gateway_username,
+                                                self.connection.gateway_password,
+                                                self.secret_path)
+            secret_field = self.plugin_configuration.get('hashicorp', 'password_field', default='password')
+            password = vault_client.get_secret(secret_field)
+            return {'passwords': [password] if password else []}
+        except PluginSDKRuntimeError as ex:
+            self.logger.error("Error retrieving passwords: {}".format(ex))
+            return None
 
     def do_get_private_key_list(self):
         def determine_keytype(key):
@@ -51,17 +55,21 @@ class Plugin(CredentialStorePlugin):
         def get_supported_key(key):
             return list(filter(lambda key_pair: key_pair[0], [(determine_keytype(key), key)]))
 
-        vault_client = Client.create_client(self.plugin_configuration,
-                                            self.connection.gateway_username,
-                                            self.connection.gateway_password,
-                                            self.secret_path)
-        secret_field = self.plugin_configuration.get('hashicorp', 'key_field', default='key')
-        key = vault_client.get_secret(secret_field)
-        return {'private_keys': get_supported_key(key) if key else []}
+        try:
+            vault_client = Client.create_client(self.plugin_configuration,
+                                                self.connection.gateway_username,
+                                                self.connection.gateway_password,
+                                                self.secret_path)
+            secret_field = self.plugin_configuration.get('hashicorp', 'key_field', default='key')
+            key = vault_client.get_secret(secret_field)
+            return {'private_keys': get_supported_key(key) if key else []}
+        except PluginSDKRuntimeError as ex:
+            self.logger.error("Error retrieving private keys: {}".format(ex))
+            return None
     
     @property
     def secret_path(self):
         return (
             self.session_cookie.get('questions', {}).get('vp') or
-             '{}/{}'.format(self.plugin_configuration.get('engine-kv-v1', 'secrets_path', required=True), self.account)
+            '{}/{}'.format(self.plugin_configuration.get('engine-kv-v1', 'secrets_path', required=True), self.account)
         )
