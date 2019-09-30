@@ -1,0 +1,105 @@
+interactions:
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.18.4]
+    method: GET
+    uri: https://hc-vault.pamint.balabit:8200/v1/sys/health
+  response:
+    body: {string: '{"initialized":true,"sealed":false,"standby":false,"performance_standby":false,"replication_performance_mode":"disabled","replication_dr_mode":"disabled","server_time_utc":1569611455,"version":"1.1.2","cluster_name":"vault-cluster-eba4a26a","cluster_id":"df107efd-43e2-b4a0-a0ac-939e3cead978"}
+
+        '}
+    headers:
+      Cache-Control: [no-store]
+      Content-Length: ['294']
+      Content-Type: [application/json]
+      Date: ['Fri, 27 Sep 2019 19:10:55 GMT']
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.18.4]
+      X-Vault-Token: [s.TnEOkvdIV2jQFICTamBaGAZb]
+    method: GET
+    uri: https://hc-vault.pamint.balabit:8200/v1/auth/approle/role/my-role/role-id
+  response:
+    body: {string: '{"request_id":"d623fe91-ae32-ef16-5fcf-2789883876b3","lease_id":"","renewable":false,"lease_duration":0,"data":{"role_id":"522d06bf-1242-d168-c275-c3d597bf0513"},"wrap_info":null,"warnings":null,"auth":null}
+
+        '}
+    headers:
+      Cache-Control: [no-store]
+      Content-Length: ['208']
+      Content-Type: [application/json]
+      Date: ['Fri, 27 Sep 2019 19:10:56 GMT']
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Length: ['0']
+      User-Agent: [python-requests/2.18.4]
+      X-Vault-Token: [s.TnEOkvdIV2jQFICTamBaGAZb]
+    method: POST
+    uri: https://hc-vault.pamint.balabit:8200/v1/auth/approle/role/my-role/secret-id
+  response:
+    body: {string: '{"request_id":"c409b4ba-06c6-6a87-1d5e-43bb6326faba","lease_id":"","renewable":false,"lease_duration":0,"data":{"secret_id":"e250290b-b8e1-86b2-3a9a-128dc292ae75","secret_id_accessor":"542eb2a1-1e10-8caf-4592-ab67aa95e616"},"wrap_info":null,"warnings":null,"auth":null}
+
+        '}
+    headers:
+      Cache-Control: [no-store]
+      Content-Length: ['270']
+      Content-Type: [application/json]
+      Date: ['Fri, 27 Sep 2019 19:10:56 GMT']
+    status: {code: 200, message: OK}
+- request:
+    body: '{"role_id": "522d06bf-1242-d168-c275-c3d597bf0513", "secret_id": "e250290b-b8e1-86b2-3a9a-128dc292ae75"}'
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      Content-Length: ['104']
+      User-Agent: [python-requests/2.18.4]
+      X-Vault-Token: [s.TnEOkvdIV2jQFICTamBaGAZb]
+    method: POST
+    uri: https://hc-vault.pamint.balabit:8200/v1/auth/approle/login
+  response:
+    body: {string: '{"request_id":"92d658b8-09f8-218c-e358-cfbcbee6f1ea","lease_id":"","renewable":false,"lease_duration":0,"data":null,"wrap_info":null,"warnings":null,"auth":{"client_token":"s.pIRMN9HN1kAU4YBCWWLZiVpJ","accessor":"EU1zT3LttX3ddsU2vJz8lA8e","policies":["default","kv_admins"],"token_policies":["default","kv_admins"],"metadata":{"role_name":"my-role"},"lease_duration":1200,"renewable":true,"entity_id":"96a80de5-fe30-8a8b-d6b0-c075eb03ec83","token_type":"service","orphan":true}}
+
+        '}
+    headers:
+      Cache-Control: [no-store]
+      Content-Length: ['479']
+      Content-Type: [application/json]
+      Date: ['Fri, 27 Sep 2019 19:10:56 GMT']
+    status: {code: 200, message: OK}
+- request:
+    body: null
+    headers:
+      Accept: ['*/*']
+      Accept-Encoding: ['gzip, deflate']
+      Connection: [keep-alive]
+      User-Agent: [python-requests/2.18.4]
+      X-Vault-Token: [s.pIRMN9HN1kAU4YBCWWLZiVpJ]
+    method: GET
+    uri: https://hc-vault.pamint.balabit:8200/v1/passwords/wsmith
+  response:
+    body: {string: '{"request_id":"985ff93b-09b0-4ea1-37dc-ac841bdaf7f7","lease_id":"","renewable":false,"lease_duration":2764800,"data":{"key":"-----BEGIN
+        RSA PRIVATE KEY-----\nmy key\n-----END RSA PRIVATE KEY-----","password":"titkos","unsupported_key":"-----BEGIN
+        NOT SUPPORTED PRIVATE KEY-----\nmy key\n-----END NOT SUPPORTED PRIVATE KEY-----"},"wrap_info":null,"warnings":null,"auth":null}
+
+        '}
+    headers:
+      Cache-Control: [no-store]
+      Content-Length: ['375']
+      Content-Type: [application/json]
+      Date: ['Fri, 27 Sep 2019 19:10:56 GMT']
+    status: {code: 200, message: OK}
+version: 1
