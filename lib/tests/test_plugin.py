@@ -19,16 +19,15 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 #
-
+import pytest
 from textwrap import dedent
 from unittest.mock import patch
-from pytest import fixture
 
 from safeguard.sessions.plugin_impl.test_utils.plugin import assert_plugin_hook_result
 from ..plugin import Plugin
 
 
-@fixture
+@pytest.fixture
 def configured_plugin():
     config = dedent('''
         [hashicorp]
@@ -149,13 +148,125 @@ def test_secrets_path_got_from_session_cookie(client, determine_vault_to_use, ma
     assert session_cookie.get('questions').get('my/path') in client.call_args[0]
 
 
-@patch('lib.client.Client._determine_vault_to_use', return_value='https://test.vault:8200')
-@patch('lib.client.Client.create_client')
-def test_secrets_path_get_calculated(client, determine_vault_to_use, configured_plugin):
-    password_list = configured_plugin.get_password_list(
-        cookie=dict(),
-        session_cookie=dict(),
-        target_username='my_super_target_user',
-        protocol='SSH'
+def provide_secret_cases():
+    for secret_type in ("password", "key"):
+        def typed_id(text):
+            return "{}_{}".format(secret_type, text)
+
+        yield pytest.param(
+            dedent("""
+                [engine-kv-v1]
+                secrets_path=kv/users
+            """),
+            "alice",
+            "10.0.0.5",
+            None,
+            secret_type,
+            ("kv/users/alice", secret_type),
+            id=typed_id("defaults")
+        )
+
+        yield pytest.param(
+            "",
+            "alice",
+            "10.0.0.5",
+            "my/secret",
+            secret_type,
+            ("my/secret", secret_type),
+            id=typed_id("user_defined_path")
+        )
+
+        yield pytest.param(
+            dedent("""
+                [hashicorp]
+                key_field=my_key_field
+                password_field=my_password_field
+                [engine-kv-v1]
+                secrets_path=kv/users
+            """),
+            "alice",
+            "10.0.0.5",
+            None,
+            secret_type,
+            ("kv/users/alice", "my_{}_field".format(secret_type)),
+            id=typed_id("define_my_fields")
+        )
+
+        yield pytest.param(
+            dedent("""
+                [hashicorp]
+                key_field=my_key_field
+                password_field=my_password_field
+                [engine-kv-v1]
+                secrets_path=kv/users
+            """),
+            "alice",
+            "10.0.0.5",
+            "my/secret",
+            secret_type,
+            ("my/secret", "my_{}_field".format(secret_type)),
+            id=typed_id("user_path_and_define_my_fields")
+        )
+
+        yield pytest.param(
+            dedent("""
+                [hashicorp]
+                key_field=my_key_field
+                password_field=my_password_field
+                delimiter=:
+                [engine-kv-v1]
+                secrets_path=kv/users
+            """),
+            "alice",
+            "10.0.0.5",
+            "my/secret",
+            secret_type,
+            ("my/secret", "my_{}_field".format(secret_type)),
+            id=typed_id("user_path_and_define_my_fields_with_delimiter")
+        )
+
+        yield pytest.param(
+            dedent("""
+                [hashicorp]
+                key_field=my_key_field
+                password_field=my_password_field
+                delimiter=:
+                [engine-kv-v1]
+                secrets_path=kv/users
+            """),
+            "alice",
+            "10.0.0.5",
+            "my/secret:afield",
+            secret_type,
+            ("my/secret", "afield"),
+            id=typed_id("user_path_and_define_my_fields_delimiter_used")
+        )
+
+        yield pytest.param(
+            dedent("""
+                [hashicorp]
+                key_field=my_key_field
+                password_field=my_password_field
+                delimiter=:
+                [engine-kv-v1]
+                secrets_path=/kv/users
+            """),
+            "alice",
+            "10.0.0.5",
+            "/a/secret:afield",
+            secret_type,
+            ("secret:", "field"),
+            id=typed_id("user_path_and_define_my_weird_fields_delimiter")
+        )
+
+
+@pytest.mark.parametrize("config,account,asset,user_path,secret_type,expected", provide_secret_cases())
+def test_secret_path_and_field_calculation(config, account, asset, user_path, secret_type, expected):
+    plugin = Plugin(config)
+    secret_path, secret_field = plugin.secret_path_and_field(
+        account=account,
+        asset=asset,
+        secret_type=secret_type,
+        user_defined_path=user_path
     )
-    assert configured_plugin.secret_path == 'kv/users/my_super_target_user'
+    assert (secret_path, secret_field) == expected
