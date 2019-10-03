@@ -1,9 +1,10 @@
-1.1.0 2019-09-12
+1.1.0 2019-10-02
 
-Add LDAP and userpass authentication methods
-Make possible to retrieve private keys
-Rename `hashicorp-vault` section to `hashicorp` in config
-Make password and private key field name configurable
+Add LDAP and userpass authentication methods.
+Make it possible to retrieve private keys.
+Rename `hashicorp-vault` section to `hashicorp` in config.
+Let end-user define the secret path as an answer to an interactive question in an AA plugin.
+Make password and private key field name configurable and also let the end-user specify it as part of the secret path.
 
 1.0.0 2019-06-11
 
