@@ -178,11 +178,10 @@ def provide_secret_cases():
 
         yield pytest.param(
             dedent("""
-                [hashicorp]
-                key_field=my_key_field
-                password_field=my_password_field
                 [engine-kv-v1]
                 secrets_path=kv/users
+                key_field=my_key_field
+                password_field=my_password_field
             """),
             "alice",
             "10.0.0.5",
@@ -194,11 +193,10 @@ def provide_secret_cases():
 
         yield pytest.param(
             dedent("""
-                [hashicorp]
-                key_field=my_key_field
-                password_field=my_password_field
                 [engine-kv-v1]
                 secrets_path=kv/users
+                key_field=my_key_field
+                password_field=my_password_field
             """),
             "alice",
             "10.0.0.5",
@@ -210,12 +208,11 @@ def provide_secret_cases():
 
         yield pytest.param(
             dedent("""
-                [hashicorp]
+                [engine-kv-v1]
+                secrets_path=kv/users
                 key_field=my_key_field
                 password_field=my_password_field
                 delimiter=:
-                [engine-kv-v1]
-                secrets_path=kv/users
             """),
             "alice",
             "10.0.0.5",
@@ -227,12 +224,11 @@ def provide_secret_cases():
 
         yield pytest.param(
             dedent("""
-                [hashicorp]
+                [engine-kv-v1]
+                secrets_path=kv/users
                 key_field=my_key_field
                 password_field=my_password_field
                 delimiter=:
-                [engine-kv-v1]
-                secrets_path=kv/users
             """),
             "alice",
             "10.0.0.5",
@@ -244,12 +240,11 @@ def provide_secret_cases():
 
         yield pytest.param(
             dedent("""
-                [hashicorp]
+                [engine-kv-v1]
+                secrets_path=/kv/users
                 key_field=my_key_field
                 password_field=my_password_field
                 delimiter=:
-                [engine-kv-v1]
-                secrets_path=/kv/users
             """),
             "alice",
             "10.0.0.5",

@@ -1,39 +1,68 @@
 [hashicorp]
-# The address or hostname of the Hashicorp Vault.
-# A list of address can be configured separated by ','
+# The address or hostname of the Hashicorp Vault. Separate more than one
+# addresses with a comma (,).
 ; address=<address>
 
-# Port of the Hashicorp Vault.
-# Default is 8200.
+# The port number of the Hashicorp Vault. Default is 8200.
 ; port=8200
 
-# The authentication method to use to connect
-# to the vault.
-# Values can be ldap, userpass
+# The authentication method to use to connect to the Hashicorp Vault. The value
+# can be one of the following: ldap or userpass.
 ; authentication_method=<authentication_method>
 
-# Defines which credentials to use
-# Possible values are: expilict or gateway
-# In case of explicit the username and password need to be configured
-# Default is gateway
+# The credential type to use. The value can be one of the following: explicit or
+# gateway. If you use credential type, you must also configure the username and
+# password parameters. Default is gateway.
 ; use_credential=gateway
 
-# The username used to authenticate with
+# The username used to authenticate to the Hashicorp Vault in case you have configured
+# the use_credential parameter as explicit
 ; username=<username>
 
-# The password used to authenticate with
+# The password used to authenticate to the Hashicorp Vault in case you have configured
+# the use_credential parameter as explicit.
 ; password=<password>
 
-# From which value field to retrieve the password secret from
-# Default is password
-;password_field=password
-
-# From which value field to retrieve the SSH private key secret from
-# Default is key
-;key_field=key
-
 [engine-kv-v1]
-# Path of endpoint where the users and passwords are stored
-# as secrets (key: username, value: password).
-# e.g. secrets/users
+# The path of the endpoint under which the user names and passwords are stored as secrets.
+# For example, secrets/users. The server username is then appended to the path on-the-fly.
+# This compound path points to an object that has the password or key as one of its fields.
 ; secrets_path=<path>
+
+# The value field to retrieve the password secret from, unless user-defined.
+# This parameter is not related to the password parameter.
+# Default is password
+; password_field=password
+
+# The value field to retrieve the SSH private key secret from, unless user-defined.
+# Default is key
+; key_field=key
+
+# The character to use as delimiter so that SPS can parse the secret field from
+# the user-defined compound path. For example, if the value of the delimiter parameter
+# is :, then you can enter the value of the compound path as kv/secret:mypassword.
+# The path will then be parsed as kv/secret and the value of password_field name will
+# be parsed as mypassword.
+; delimiter=<delimiter>
+
+[tls]
+# To disable TLS completely, enter no as the value of this parameter.
+# Default is yes
+; enabled = yes
+
+# Configure this parameter to enable client-side verification. The certificate shown
+# by the server will be checked with this CA.
+# If the value of this parameter is $[<trusted_ca_list_name>], the certificates are
+# retrieved from the trusted CA list configured on SPS, identified by the name.
+# When the certificate is inserted into the configuration file, it must be in PEM
+# format and all the new lines must be indented with one whitespace. If it is a chain,
+# insert the certificates right after each other.
+; ca_cert = <ca-certificate-chain>
+; ca_cert = $[<trusted_ca_list_name>]
+
+# Configure this parameter to enable server-side verification. If the value of this
+# parameter is $, the certificate identified by the section and option pair is retrieved
+# from the configured Credential Store. When the certificate is inserted into the
+# configuration file, it must be in PEM format and all the new lines must be indented
+# with one whitespace. Note that encrypted keys are not supported.
+; client_cert = <client-certificate-and-key>

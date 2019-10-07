@@ -1,3 +1,9 @@
+1.1.1 2019-10-07
+
+INCLUDES INCOMPATIBLE CONFIG CHANGE!
+Rewrite default.cfg to be more logical and also according to documentation guidelines.
+Move password_field, key_field, delimiter under secret-kv-v1 to be more readable.
+
 1.1.0 2019-10-02
 
 Add LDAP and userpass authentication methods.

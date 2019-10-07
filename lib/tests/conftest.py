@@ -121,14 +121,13 @@ def make_hc_config(site_parameters):
             username={username}
             password={password}
 
-            {extra_conf}
-
             [approle-authentication]
             role = {role}
             vault_token = {vault_token}
 
             [engine-kv-v1]
             secrets_path = {secrets_path}
+            {extra_conf}
         """.format(
             address=site_parameters['address'],
             port=site_parameters['port'],
