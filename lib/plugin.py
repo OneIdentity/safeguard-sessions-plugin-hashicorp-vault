@@ -84,7 +84,7 @@ class Plugin(CredentialStorePlugin):
 
     def secret_path_and_field(self, account, asset, secret_type, user_defined_path):
         default_field = self.plugin_configuration.get(
-            'hashicorp',
+            'engine-kv-v1',
             self.SECRET_TYPE_TO_FIELD[secret_type]["option"],
             default=self.SECRET_TYPE_TO_FIELD[secret_type]["default"]
         )
@@ -104,7 +104,7 @@ class Plugin(CredentialStorePlugin):
 
     def parse_user_defined_path_and_field(self, path, default_field):
         field = default_field
-        delimiter = self.plugin_configuration.get('hashicorp', 'delimiter')
+        delimiter = self.plugin_configuration.get('engine-kv-v1', 'delimiter')
 
         match = re.search("^/(.)/(.*)", path)
         tokens = match.groups() if match else []

@@ -302,13 +302,13 @@ def data_provider():
 
 
 @patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
-@pytest.mark.parametrize('auth_method, instance, extra_config', data_provider())
-def test_client_uses_the_appropriate_authenticator(_requests_tls, auth_method, instance, extra_config):
+@pytest.mark.parametrize('auth_method, instance, extra_parts', data_provider())
+def test_client_uses_the_appropriate_authenticator(_requests_tls, auth_method, instance, extra_parts):
     SESSION.get.side_effect = GET_RESPONSES
     config = PluginConfiguration(
         hashicorp_vault_config(
             auth_method=auth_method,
-            extra_parts=extra_config) +
+            extra_parts=extra_parts) +
         HASHICORP_VAULT_APPROLE_AUTH_CONFIG +
         HASHICORP_VAULT_KV_V1_CONFIG
     )
@@ -330,15 +330,17 @@ def authenticator_password_cases():
     )
 
 
-@pytest.mark.parametrize('extra_conf, users, expected', authenticator_password_cases())
+@pytest.mark.parametrize('extra_parts, users, expected', authenticator_password_cases())
 @patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
-def test_authenticator_calculates_username_and_password_according_to_config(_requests_tls, mocker, extra_conf, users, expected):
+def test_authenticator_calculates_username_and_password_according_to_config(
+        _requests_tls, mocker, extra_parts, users, expected
+):
     SESSION.get.side_effect = GET_RESPONSES
     vault_address = 'https://{}:{}'.format(ADDRESS, PORT)
     config = PluginConfiguration(
         hashicorp_vault_config(
             auth_method='ldap',
-            extra_parts=extra_conf) +
+            extra_parts=extra_parts) +
         HASHICORP_VAULT_APPROLE_AUTH_CONFIG +
         HASHICORP_VAULT_KV_V1_CONFIG
     )
