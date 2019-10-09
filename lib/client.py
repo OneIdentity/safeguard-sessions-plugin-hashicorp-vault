@@ -45,6 +45,11 @@ class InvalidConfigurationError(PluginSDKRuntimeError):
 
 
 class Client:
+    USABLE_HEALTH_RESPONSE_CODES = {
+        200: "active",
+        473: "performance standby"
+    }
+
     def __init__(self, requests_tls, authenticator, secret_retriever):
         self.__requests_tls = requests_tls
         self.__authenticator = authenticator
@@ -68,8 +73,8 @@ class Client:
             secret = self.__secret_retriever.retrieve_secret(session, key, client_token)
         return secret
 
-    @staticmethod
-    def _determine_vault_to_use(requests_tls, vault_addresses, vault_port):
+    @classmethod
+    def _determine_vault_to_use(cls, requests_tls, vault_addresses, vault_port):
         vault_url = None
         with requests_tls.open_session() as session:
             for vault_address in vault_addresses:
@@ -77,9 +82,14 @@ class Client:
                                                 vault_address,
                                                 vault_port)
                 try:
-                    logger.info('Try to setup connection to Vault on address: {}'.format(vault_address))
-                    _extract_data_from_endpoint(session, vault_url + '/v1/sys/health', 'sealed', None, 'get')
-                    break
+                    logger.debug('Try to setup connection to Vault on address: {}'.format(vault_address))
+                    response = _invoke_http_method(session, vault_url + '/v1/sys/health', None, 'get')
+                    if response.status_code in cls.USABLE_HEALTH_RESPONSE_CODES:
+                        logger.info('Using Vault {}; status="{}"'.format(
+                            vault_url,
+                            cls.USABLE_HEALTH_RESPONSE_CODES[response.status_code],
+                        ))
+                        break
                 except VaultException:
                     logger.error('Cannot connect to vault on the following address: {}'.format(vault_url))
                     continue
@@ -94,8 +104,6 @@ class Client:
         vault_port = config.getint('hashicorp', 'port', default=8200)
 
         vault_url = cls._determine_vault_to_use(requests_tls, vault_addresses, vault_port)
-
-        logger.info('Using Vault {}'.format(vault_url))
 
         if not secrets_path:
             secrets_path = config.get('engine-kv-v1', 'secrets_path')
@@ -242,17 +250,7 @@ class PasswordTypeAuthenticator(Authenticator):
 
 
 def _extract_data_from_endpoint(session, endpoint_url, data_path, token, method, data=None):
-    if token:
-        headers = {'X-Vault-Token': token}
-    else:
-        headers = {}
-    logger.debug('Sending http request to Hashicorp Vault, endpoint_url="{}", method="{}"'
-                 .format(endpoint_url, method))
-    try:
-        response = session.get(endpoint_url, headers=headers) if method == 'get' \
-            else session.post(endpoint_url, headers=headers, data=json.dumps(data) if data else None)
-    except requests.exceptions.ConnectionError as exc:
-        raise VaultException('Connection error: {}'.format(exc))
+    response = _invoke_http_method(session, endpoint_url, token, method, data)
     if response.ok:
         def follow_path(d, path):
             return d if not path else follow_path(d[path[0]], path[1:])
@@ -269,3 +267,17 @@ def _extract_data_from_endpoint(session, endpoint_url, data_path, token, method,
             endpoint_url=endpoint_url,
             raw_response=response.text
         ))
+
+
+def _invoke_http_method(session, endpoint_url, token, method, data=None):
+    if token:
+        headers = {'X-Vault-Token': token}
+    else:
+        headers = {}
+    logger.debug('Sending http request to Hashicorp Vault, endpoint_url="{}", method="{}"'
+                 .format(endpoint_url, method))
+    try:
+        return session.get(endpoint_url, headers=headers) if method == 'get' \
+            else session.post(endpoint_url, headers=headers, data=json.dumps(data) if data else None)
+    except requests.exceptions.ConnectionError as exc:
+        raise VaultException('Connection error: {}'.format(exc))

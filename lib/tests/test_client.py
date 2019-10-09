@@ -28,6 +28,7 @@ from collections import namedtuple
 from textwrap import dedent
 from contextlib import contextmanager
 
+from safeguard.sessions.plugin.logging import configure as log_configure
 from safeguard.sessions.plugin.plugin_configuration import PluginConfiguration
 
 from ..client import (
@@ -177,6 +178,20 @@ ERROR_RESPONSE_NO_SUCH_FIELD = Response(text=json.dumps({
 }), ok=True, status_code=200)
 
 
+PERFORMANCE_STANDBY_HEALTH_RESPONSE = Response(text=json.dumps({
+    'initialized': True,
+    'sealed': False,
+    'standby': False,
+    'performance_standby': True,
+    'replication_performance_mode': 'disabled',
+    'replication_dr_mode': 'disabled',
+    'server_time_utc': 1568365137,
+    'version': '1.1.2',
+    'cluster_name': 'vault-cluster-eba4a26a',
+    'cluster_id': 'df107efd-43e2-b4a0-a0ac-939e3cead978'}
+), ok=True, status_code=473)
+
+
 @contextmanager
 def _open_session():
     yield SESSION
@@ -190,6 +205,9 @@ REQUESTS_TLS.open_session = _open_session
 
 def hashicorp_vault_config(address=ADDRESS, auth_method='approle', extra_parts=''):
     return dedent('''
+        [logging]
+        log_level=debug
+
         [hashicorp]
         address = {}
         port = {}
@@ -207,7 +225,7 @@ def test_client_can_be_instantiated():
 def test_client_can_be_instantiated_with_config(_requests_tls, mocker):
     SESSION.post.side_effect = POST_RESPONSES
     SESSION.get.side_effect = GET_RESPONSES
-    config = PluginConfiguration(hashicorp_vault_config() +
+    config = create_config_and_set_loglevel(hashicorp_vault_config() +
                                  HASHICORP_VAULT_APPROLE_AUTH_CONFIG +
                                  HASHICORP_VAULT_KV_V1_CONFIG)
     mocker.spy(Client, '__init__')
@@ -229,7 +247,7 @@ def test_client_factory_uses_HTTPS_when_TLS_enabled(_requests_tls, mocker):
     SESSION.get.side_effect = GET_RESPONSES
     REQUESTS_TLS.tls_enabled = True
     https_url = 'https://{}:{}'.format(ADDRESS, PORT)
-    config = PluginConfiguration(hashicorp_vault_config() +
+    config = create_config_and_set_loglevel(hashicorp_vault_config() +
                                  HASHICORP_VAULT_APPROLE_AUTH_CONFIG +
                                  HASHICORP_VAULT_KV_V1_CONFIG)
     mocker.spy(AppRoleAuthenticator, '__init__')
@@ -242,7 +260,7 @@ def test_client_factory_uses_HTTPS_when_TLS_enabled(_requests_tls, mocker):
 @patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
 def test_client_factory_raises_exception_if_secrets_engine_cannot_be_determined(_requests_tls):
     SESSION.get.side_effect = GET_RESPONSES
-    config = PluginConfiguration(hashicorp_vault_config() +
+    config = create_config_and_set_loglevel(hashicorp_vault_config() +
                                  HASHICORP_VAULT_APPROLE_AUTH_CONFIG)
     with raises(InvalidConfigurationError):
         Client.create_client(config)
@@ -305,7 +323,7 @@ def data_provider():
 @pytest.mark.parametrize('auth_method, instance, extra_parts', data_provider())
 def test_client_uses_the_appropriate_authenticator(_requests_tls, auth_method, instance, extra_parts):
     SESSION.get.side_effect = GET_RESPONSES
-    config = PluginConfiguration(
+    config = create_config_and_set_loglevel(
         hashicorp_vault_config(
             auth_method=auth_method,
             extra_parts=extra_parts) +
@@ -337,7 +355,7 @@ def test_authenticator_calculates_username_and_password_according_to_config(
 ):
     SESSION.get.side_effect = GET_RESPONSES
     vault_address = 'https://{}:{}'.format(ADDRESS, PORT)
-    config = PluginConfiguration(
+    config = create_config_and_set_loglevel(
         hashicorp_vault_config(
             auth_method='ldap',
             extra_parts=extra_parts) +
@@ -356,7 +374,7 @@ def test_authenticator_calculates_username_and_password_according_to_config(
 @patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
 def test_raises_vault_error_when_cannot_make_connection_to_vault(_requests_tls):
     SESSION.get.side_effect = [ConnectionError()]
-    config = PluginConfiguration(
+    config = create_config_and_set_loglevel(
         hashicorp_vault_config(
             address='vault.is.down',
             auth_method='ldap',
@@ -371,7 +389,7 @@ def test_raises_vault_error_when_cannot_make_connection_to_vault(_requests_tls):
 @patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
 def test_uses_first_available_vault_address_when_more_configured(_requests_tls, mocker):
     SESSION.get.side_effect = [ConnectionError(), GET_RESPONSES[0]]
-    config = PluginConfiguration(
+    config = create_config_and_set_loglevel(
         hashicorp_vault_config(
             address='vault.is.down,test.vault',
             auth_method='ldap',
@@ -380,7 +398,28 @@ def test_uses_first_available_vault_address_when_more_configured(_requests_tls, 
         HASHICORP_VAULT_KV_V1_CONFIG
     )
     mocker.spy(PasswordTypeAuthenticator, '__init__')
+    client = Client.create_client(config, 'myuser', 'mypassword')
+    client.authenticator.__init__.assert_called_with(
+        client.authenticator,
+        'https://test.vault:{}'.format(PORT),
+        'myuser',
+        'mypassword',
+        'ldap'
+    )
 
+
+@patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
+def test_uses_first_available_vault_address_even_if_performance_standby(_requests_tls, mocker):
+    SESSION.get.side_effect = [ConnectionError(), PERFORMANCE_STANDBY_HEALTH_RESPONSE]
+    config = create_config_and_set_loglevel(
+        hashicorp_vault_config(
+            address='vault.is.down,test.vault',
+            auth_method='ldap',
+            extra_parts='use_credential=gateway') +
+        HASHICORP_VAULT_APPROLE_AUTH_CONFIG +
+        HASHICORP_VAULT_KV_V1_CONFIG
+    )
+    mocker.spy(PasswordTypeAuthenticator, '__init__')
     client = Client.create_client(config, 'myuser', 'mypassword')
     client.authenticator.__init__.assert_called_with(
         client.authenticator,
@@ -394,7 +433,7 @@ def test_uses_first_available_vault_address_when_more_configured(_requests_tls, 
 @patch('safeguard.sessions.plugin.requests_tls.RequestsTLS', return_value=REQUESTS_TLS)
 def test_raises_exception_when_cannot_determine_vault_credentials(_requests_tls):
     SESSION.get.side_effect = GET_RESPONSES
-    config = PluginConfiguration(
+    config = create_config_and_set_loglevel(
         hashicorp_vault_config(
             auth_method='ldap',
             extra_parts='use_credential=gateway') +
@@ -403,3 +442,9 @@ def test_raises_exception_when_cannot_determine_vault_credentials(_requests_tls)
     )
     with raises(CredentialsCannotBeDeterminedException):
         Client.create_client(config, gw_user='my_gw_user')
+
+
+def create_config_and_set_loglevel(config_str):
+    config = PluginConfiguration(config_str)
+    log_configure(config)
+    return config
