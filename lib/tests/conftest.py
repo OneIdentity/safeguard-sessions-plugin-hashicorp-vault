@@ -113,6 +113,9 @@ def make_hc_config(site_parameters):
             password = site_parameters['password']
 
         return dedent("""
+            [logging]
+            log_level=debug
+
             [hashicorp]
             address = {address}
             port = {port}

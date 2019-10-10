@@ -149,119 +149,253 @@ def test_secrets_path_got_from_session_cookie(client, determine_vault_to_use, ma
 
 
 def provide_secret_cases():
-    for secret_type in ("password", "key"):
-        def typed_id(text):
-            return "{}_{}".format(secret_type, text)
-
-        yield pytest.param(
-            dedent("""
-                [engine-kv-v1]
-                secrets_path=kv/users
-            """),
-            "alice",
-            "10.0.0.5",
-            None,
-            secret_type,
-            ("kv/users/alice", secret_type),
-            id=typed_id("defaults")
-        )
-
-        yield pytest.param(
-            "",
-            "alice",
-            "10.0.0.5",
-            "my/secret",
-            secret_type,
-            ("my/secret", secret_type),
-            id=typed_id("user_defined_path")
-        )
-
-        yield pytest.param(
-            dedent("""
-                [engine-kv-v1]
-                secrets_path=kv/users
-                key_field=my_key_field
-                password_field=my_password_field
-            """),
-            "alice",
-            "10.0.0.5",
-            None,
-            secret_type,
-            ("kv/users/alice", "my_{}_field".format(secret_type)),
-            id=typed_id("define_my_fields")
-        )
-
-        yield pytest.param(
-            dedent("""
-                [engine-kv-v1]
-                secrets_path=kv/users
-                key_field=my_key_field
-                password_field=my_password_field
-            """),
-            "alice",
-            "10.0.0.5",
-            "my/secret",
-            secret_type,
-            ("my/secret", "my_{}_field".format(secret_type)),
-            id=typed_id("user_path_and_define_my_fields")
-        )
-
-        yield pytest.param(
-            dedent("""
-                [engine-kv-v1]
-                secrets_path=kv/users
-                key_field=my_key_field
-                password_field=my_password_field
-                delimiter=:
-            """),
-            "alice",
-            "10.0.0.5",
-            "my/secret",
-            secret_type,
-            ("my/secret", "my_{}_field".format(secret_type)),
-            id=typed_id("user_path_and_define_my_fields_with_delimiter")
-        )
-
-        yield pytest.param(
-            dedent("""
-                [engine-kv-v1]
-                secrets_path=kv/users
-                key_field=my_key_field
-                password_field=my_password_field
-                delimiter=:
-            """),
-            "alice",
-            "10.0.0.5",
-            "my/secret:afield",
-            secret_type,
-            ("my/secret", "afield"),
-            id=typed_id("user_path_and_define_my_fields_delimiter_used")
-        )
-
-        yield pytest.param(
-            dedent("""
-                [engine-kv-v1]
-                secrets_path=/kv/users
-                key_field=my_key_field
-                password_field=my_password_field
-                delimiter=:
-            """),
-            "alice",
-            "10.0.0.5",
-            "/a/secret:afield",
-            secret_type,
-            ("secret:", "field"),
-            id=typed_id("user_path_and_define_my_weird_fields_delimiter")
-        )
-
-
-@pytest.mark.parametrize("config,account,asset,user_path,secret_type,expected", provide_secret_cases())
-def test_secret_path_and_field_calculation(config, account, asset, user_path, secret_type, expected):
-    plugin = Plugin(config)
-    secret_path, secret_field = plugin.secret_path_and_field(
-        account=account,
-        asset=asset,
-        secret_type=secret_type,
-        user_defined_path=user_path
+    yield pytest.param(
+        dedent("""
+            [engine-kv-v1]
+            secrets_path=kv/users
+        """),
+        "alice",
+        "10.0.0.5",
+        None,
+        {
+            "password": ("kv/users/alice", "password"),
+            "key": ("kv/users/alice", "key")
+        },
+        id="defaults"
     )
-    assert (secret_path, secret_field) == expected
+
+    yield pytest.param(
+        dedent("""
+            [engine-kv-v1]
+            secrets_path=kv/users
+        """),
+        "alice",
+        "10.0.0.5",
+        "my/secret",
+        {
+            "password": ("my/secret", "password"),
+            "key": ("my/secret", "key")
+        },
+        id="user_path"
+    )
+
+    yield pytest.param(
+        dedent("""
+            [engine-kv-v1]
+            secrets_path=kv/users
+            default_type=password
+        """),
+        "alice",
+        "10.0.0.5",
+        "my/secret",
+        {
+            "password": ("my/secret", "password"),
+            "key": (None, None)
+        },
+        id="user_path_default_type_password"
+    )
+
+    yield pytest.param(
+        dedent("""
+            [engine-kv-v1]
+            secrets_path=kv/users
+            default_type=key
+        """),
+        "alice",
+        "10.0.0.5",
+        "my/secret",
+        {
+            "password": (None, None),
+            "key": ("my/secret", "key")
+        },
+        id="user_path_default_type_key"
+    )
+
+    yield pytest.param(
+        dedent("""
+            [engine-kv-v1]
+            secrets_path=kv/users
+            default_type=password
+        """),
+        "alice",
+        "10.0.0.5",
+        "p://my/secret",
+        {
+            "password": ("my/secret", "password"),
+            "key": (None, None)
+        },
+        id="user_path_with_short_password_schema"
+    )
+
+    yield pytest.param(
+        dedent("""
+            [engine-kv-v1]
+            secrets_path=kv/users
+            default_type=password
+        """),
+        "alice",
+        "10.0.0.5",
+        "password://my/secret",
+        {
+            "password": ("my/secret", "password"),
+            "key": (None, None)
+        },
+        id="user_path_with_long_password_schema"
+    )
+
+    yield pytest.param(
+        dedent("""
+            [engine-kv-v1]
+            secrets_path=kv/users
+            default_type=password
+        """),
+        "alice",
+        "10.0.0.5",
+        "k://my/secret",
+        {
+            "password": (None, None),
+            "key": ("my/secret", "key")
+        },
+        id="user_path_with_short_key_schema"
+    )
+
+    yield pytest.param(
+        dedent("""
+                [engine-kv-v1]
+                secrets_path=kv/users
+                default_type=password
+            """),
+        "alice",
+        "10.0.0.5",
+        "key://my/secret",
+        {
+            "password": (None, None),
+            "key": ("my/secret", "key")
+        },
+        id="user_path_with_long_key_schema"
+    )
+
+    yield pytest.param(
+        dedent("""
+                [engine-kv-v1]
+                secrets_path=kv/users
+                default_type=password
+            """),
+        "alice",
+        "10.0.0.5",
+        "foo://my/secret",
+        {
+            "password": ("foo:%2Fmy/secret", "password"),
+            "key": (None, None)
+        },
+        id="user_path_with_unknown_schema"
+    )
+
+    yield pytest.param(
+        dedent("""
+                [engine-kv-v1]
+                secrets_path=kv/users
+                default_type=password
+            """),
+        "alice",
+        "10.0.0.5",
+        "key://my//secret",
+        {
+            "password": (None, None),
+            "key": ("my%2Fsecret", "key")
+        },
+        id="user_path_with_schema_and_literal_slash"
+    )
+
+    yield pytest.param(
+        dedent("""
+            [engine-kv-v1]
+            secrets_path=kv/users
+            default_type=password
+        """),
+        "alice",
+        "10.0.0.5",
+        "my/secret#pwd",
+        {
+            "password": ("my/secret", "pwd"),
+            "key": (None, None)
+        },
+        id="user_path_with_field"
+    )
+
+    yield pytest.param(
+        dedent("""
+            [engine-kv-v1]
+            secrets_path=kv/users
+            default_type=password
+        """),
+        "alice",
+        "10.0.0.5",
+        "my/secret##pwd",
+        {
+            "password": ("my/secret#pwd", "password"),
+            "key": (None, None)
+        },
+        id="user_path_with_literal_hash"
+    )
+
+    yield pytest.param(
+        dedent("""
+            [engine-kv-v1]
+            secrets_path=kv/users
+            default_type=password
+        """),
+        "alice",
+        "10.0.0.5",
+        "password://my/secret#pwd",
+        {
+            "password": ("my/secret", "pwd"),
+            "key": (None, None)
+        },
+        id="user_path_with_field_and_schema"
+    )
+
+    yield pytest.param(
+        dedent("""
+            [engine-kv-v1]
+            secrets_path=kv/users
+            default_type=password
+        """),
+        "alice",
+        "10.0.0.5",
+        "password://my/secret##pwd",
+        {
+            "password": ("my/secret#pwd", "password"),
+            "key": (None, None)
+        },
+        id="user_path_with_literal_hash_and_schema"
+    )
+
+
+@pytest.mark.parametrize("config,account,asset,user_path,expected", provide_secret_cases())
+def test_secret_path_and_field_calculation(config, account, asset, user_path, expected):
+    for secret_type in ("password", "key"):
+        plugin = Plugin("[logging]\nlog_level=debug\n" + config)
+        secret_path, secret_field = plugin.secret_path_and_field(
+            account=account,
+            asset=asset,
+            secret_type=secret_type,
+            user_defined_path=user_path
+        )
+        assert (secret_path, secret_field) == expected[secret_type]
+
+
+@patch('lib.client.Client._determine_vault_to_use', return_vaule='https://test.vault:8200')
+@patch('lib.client.Client.create_client')
+def test_immediate_return_for_get_password_if_secret_path_points_to_key(
+        client, determine_vault_to_use, make_hc_config, caplog
+):
+    config = make_hc_config(auth_method='ldap', secrets_path='')
+    session_cookie = {'questions': {'vp': 'k://my/path'}}
+    plugin = Plugin(config)
+    result = plugin.get_password_list(
+        cookie={}, session_cookie=session_cookie, target_username='wsmith', protocol='SSH'
+    )
+
+    assert result["passwords"] == []
+    assert "User defined secret type is not equal to system requested type key!=password" in caplog.text
