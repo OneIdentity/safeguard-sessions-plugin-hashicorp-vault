@@ -15,13 +15,15 @@
 # password parameters. Default is gateway.
 ; use_credential=gateway
 
-# The username used to authenticate to the Hashicorp Vault in case you have configured
+# The username used to authenticate to the Hashicorp Vault if you have configured
 # the use_credential parameter as explicit
 ; username=<username>
 
-# The password used to authenticate to the Hashicorp Vault in case you have configured
-# the use_credential parameter as explicit.
-; password=<password>
+# The password used to authenticate to the Hashicorp Vault if you have configured
+# the use_credential parameter as explicit. To use a local Credential Store to
+# host this data, set the parameter to $ and read the "Store sensitive plugin data
+# securely" section in the documentation.
+; password=<$-or-password>
 
 [engine-kv-v1]
 # The path of the endpoint under which the user names and passwords are stored as secrets.
@@ -52,13 +54,13 @@
 
 # Configure this parameter to enable client-side verification. The certificate shown
 # by the server will be checked with this CA.
-# If the value of this parameter is $[<trusted_ca_list_name>], the certificates are
+# If the value of this parameter is $[<trusted-ca-list-name>], the certificates are
 # retrieved from the trusted CA list configured on SPS, identified by the name.
 # When the certificate is inserted into the configuration file, it must be in PEM
 # format and all the new lines must be indented with one whitespace. If it is a chain,
 # insert the certificates right after each other.
 ; ca_cert = <ca-certificate-chain>
-; ca_cert = $[<trusted_ca_list_name>]
+; ca_cert = $[<trusted-ca-list-name>]
 
 # Configure this parameter to enable server-side verification. If the value of this
 # parameter is $, the certificate identified by the section and option pair is retrieved
