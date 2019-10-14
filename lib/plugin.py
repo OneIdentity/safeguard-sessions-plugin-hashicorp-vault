@@ -41,6 +41,9 @@ class Plugin(CredentialStorePlugin):
                 account=self.account, asset=self.asset, secret_type="password", user_defined_path=self.user_defined_path
             )
 
+            if secret_path is None or secret_field is None:
+                return {'passwords': []}
+
             vault_client = Client.create_client(self.plugin_configuration,
                                                 self.connection.gateway_username,
                                                 self.connection.gateway_password,
@@ -68,6 +71,9 @@ class Plugin(CredentialStorePlugin):
                 account=self.account, asset=self.asset, secret_type="key", user_defined_path=self.user_defined_path
             )
 
+            if secret_path is None or secret_field is None:
+                return {'private_keys': []}
+
             vault_client = Client.create_client(self.plugin_configuration,
                                                 self.connection.gateway_username,
                                                 self.connection.gateway_password,
@@ -90,7 +96,7 @@ class Plugin(CredentialStorePlugin):
         )
 
         secret_path, secret_field = (
-            self.parse_user_defined_path_and_field(user_defined_path, default_field) if user_defined_path
+            self.parse_user_defined_path_and_field(user_defined_path, default_field, secret_type) if user_defined_path
             else (
                 '{}/{}'.format(
                     self.plugin_configuration.get('engine-kv-v1', 'secrets_path', required=True),
@@ -99,23 +105,49 @@ class Plugin(CredentialStorePlugin):
                 default_field
             )
         )
+
         self.logger.info("Calculated secret path={} field={}".format(secret_path, secret_field))
         return secret_path, secret_field
 
-    def parse_user_defined_path_and_field(self, path, default_field):
-        field = default_field
-        delimiter = self.plugin_configuration.get('engine-kv-v1', 'delimiter')
+    def parse_user_defined_path_and_field(self, path, default_field, secret_type):
+        path, schema = self.get_schema(path, secret_type)
 
-        match = re.search("^/(.)/(.*)", path)
-        tokens = match.groups() if match else []
-        if len(tokens) > 1:
-            delimiter = tokens[0]
-            path = tokens[1]
+        if secret_type != schema:
+            self.logger.debug("User defined secret type is not equal to system requested type {}!={}".format(
+                schema, secret_type
+            ))
+            return None, None
 
-        if delimiter:
-            elems = path.rsplit(delimiter, maxsplit=1)
-            path = elems.pop(0)
-            if elems:
-                field = elems.pop(0)
+        # replace // with URL encoded version
+        path = path.replace("//", "%2F")
+
+        path, field = self.get_field(path, default_field)
+
+        path = path.replace("##", "#")
 
         return path, field
+
+    def get_schema(self, path, secret_type):
+        schema = self.plugin_configuration.getienum("engine-kv-v1", "default_type", ("password", "key")) or secret_type
+        match = re.match(r"(\w+)://(.*)", path)
+
+        if not match:
+            return path, schema
+        if "password".startswith(match.group(1)):
+            schema = "password"
+        elif "key".startswith(match.group(1)):
+            schema = "key"
+        else:
+            self.logger.warning("Invalid schema in user defined path: path={} schema={}".format(
+                path,
+                match.group(1)
+            ))
+            return path, schema
+
+        return match.group(2), schema
+
+    def get_field(self, path, field):
+        reverse_path = path[::-1]
+        match = re.match(r"([^#]*)#($|[^#].*)", reverse_path)
+
+        return (match.group(2)[::-1], match.group(1)[::-1]) if match else (path, field)
