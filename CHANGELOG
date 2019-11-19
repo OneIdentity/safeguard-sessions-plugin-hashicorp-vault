@@ -1,3 +1,7 @@
+1.1.2 2019-11-15
+
+Give use_credential parameter a default value, as written in the default.cfg
+
 1.1.1 2019-10-07
 
 INCLUDES INCOMPATIBLE CONFIG CHANGE!

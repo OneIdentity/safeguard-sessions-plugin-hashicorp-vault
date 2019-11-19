@@ -149,7 +149,7 @@ class AuthenticatorFactory:
     def credential_from_config(config, option_name):
         return (
             config.get('hashicorp', option_name, required=True)
-            if config.getienum('hashicorp', 'use_credential', ('explicit', 'gateway'), required=True) == 'explicit'
+            if config.getienum('hashicorp', 'use_credential', ('explicit', 'gateway'), default='gateway') == 'explicit'
             else None
         )
 
