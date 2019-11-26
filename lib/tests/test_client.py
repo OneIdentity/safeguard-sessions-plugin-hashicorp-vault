@@ -226,8 +226,8 @@ def test_client_can_be_instantiated_with_config(_requests_tls, mocker):
     SESSION.post.side_effect = POST_RESPONSES
     SESSION.get.side_effect = GET_RESPONSES
     config = create_config_and_set_loglevel(hashicorp_vault_config() +
-                                 HASHICORP_VAULT_APPROLE_AUTH_CONFIG +
-                                 HASHICORP_VAULT_KV_V1_CONFIG)
+                                            HASHICORP_VAULT_APPROLE_AUTH_CONFIG +
+                                            HASHICORP_VAULT_KV_V1_CONFIG)
     mocker.spy(Client, '__init__')
     mocker.spy(AppRoleAuthenticator, '__init__')
     mocker.spy(KVEngineV1SecretRetriever, '__init__')
@@ -248,8 +248,8 @@ def test_client_factory_uses_HTTPS_when_TLS_enabled(_requests_tls, mocker):
     REQUESTS_TLS.tls_enabled = True
     https_url = 'https://{}:{}'.format(ADDRESS, PORT)
     config = create_config_and_set_loglevel(hashicorp_vault_config() +
-                                 HASHICORP_VAULT_APPROLE_AUTH_CONFIG +
-                                 HASHICORP_VAULT_KV_V1_CONFIG)
+                                            HASHICORP_VAULT_APPROLE_AUTH_CONFIG +
+                                            HASHICORP_VAULT_KV_V1_CONFIG)
     mocker.spy(AppRoleAuthenticator, '__init__')
     mocker.spy(KVEngineV1SecretRetriever, '__init__')
     client = Client.create_client(config)
@@ -261,7 +261,7 @@ def test_client_factory_uses_HTTPS_when_TLS_enabled(_requests_tls, mocker):
 def test_client_factory_raises_exception_if_secrets_engine_cannot_be_determined(_requests_tls):
     SESSION.get.side_effect = GET_RESPONSES
     config = create_config_and_set_loglevel(hashicorp_vault_config() +
-                                 HASHICORP_VAULT_APPROLE_AUTH_CONFIG)
+                                            HASHICORP_VAULT_APPROLE_AUTH_CONFIG)
     with raises(InvalidConfigurationError):
         Client.create_client(config)
 

@@ -63,7 +63,6 @@ def test_do_get_password_list(client, _, configured_plugin):
     )
 
 
-
 @patch('lib.client.Client._determine_vault_to_use', return_vaule='https://test.vault:8200')
 @patch('lib.client.Client.get_secret', return_value=('-----BEGIN RSA PRIVATE KEY-----\n'
                                                      'my key\n'
