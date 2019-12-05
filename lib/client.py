@@ -44,10 +44,7 @@ class InvalidConfigurationError(PluginSDKRuntimeError):
 
 
 class Client:
-    USABLE_HEALTH_RESPONSE_CODES = {
-        200: "active",
-        473: "performance standby"
-    }
+    USABLE_HEALTH_RESPONSE_CODES = {200: "active", 473: "performance standby"}
 
     def __init__(self, requests_tls, authenticator, secret_retriever):
         self.__requests_tls = requests_tls
@@ -77,106 +74,103 @@ class Client:
         vault_url = None
         with requests_tls.open_session() as session:
             for vault_address in vault_addresses:
-                vault_url = '{}://{}:{}'.format('https' if requests_tls.tls_enabled else 'http',
-                                                vault_address,
-                                                vault_port)
+                vault_url = "{}://{}:{}".format(
+                    "https" if requests_tls.tls_enabled else "http", vault_address, vault_port
+                )
                 try:
-                    logger.debug('Try to setup connection to Vault on address: {}'.format(vault_address))
-                    response = _invoke_http_method(session, vault_url + '/v1/sys/health', None, 'get')
+                    logger.debug("Try to setup connection to Vault on address: {}".format(vault_address))
+                    response = _invoke_http_method(session, vault_url + "/v1/sys/health", None, "get")
                     if response.status_code in cls.USABLE_HEALTH_RESPONSE_CODES:
-                        logger.info('Using Vault {}; status="{}"'.format(
-                            vault_url,
-                            cls.USABLE_HEALTH_RESPONSE_CODES[response.status_code],
-                        ))
+                        logger.info(
+                            'Using Vault {}; status="{}"'.format(
+                                vault_url, cls.USABLE_HEALTH_RESPONSE_CODES[response.status_code],
+                            )
+                        )
                         break
                 except VaultException:
-                    logger.error('Cannot connect to vault on the following address: {}'.format(vault_url))
+                    logger.error("Cannot connect to vault on the following address: {}".format(vault_url))
                     continue
             else:
-                raise VaultException('None of the configured vaults can be reached')
+                raise VaultException("None of the configured vaults can be reached")
         return vault_url
 
     @classmethod
     def create_client(cls, config, gw_user=None, gw_password=None, secrets_path=None):
         requests_tls = RequestsTLS.from_config(config)
-        vault_addresses = list(map(lambda va: va.strip(), config.get('hashicorp', 'address', required=True).split(',')))
-        vault_port = config.getint('hashicorp', 'port', default=8200)
+        vault_addresses = list(map(lambda va: va.strip(), config.get("hashicorp", "address", required=True).split(",")))
+        vault_port = config.getint("hashicorp", "port", default=8200)
 
         vault_url = cls._determine_vault_to_use(requests_tls, vault_addresses, vault_port)
 
         if not secrets_path:
-            secrets_path = config.get('engine-kv-v1', 'secrets_path')
+            secrets_path = config.get("engine-kv-v1", "secrets_path")
 
         if secrets_path:
             secret_retriever = KVEngineV1SecretRetriever(vault_url, secrets_path)
         else:
-            raise InvalidConfigurationError('No valid secrets engine can be determined based on config')
+            raise InvalidConfigurationError("No valid secrets engine can be determined based on config")
 
         authenticator = AuthenticatorFactory.create_authenticator(config, vault_url, gw_user, gw_password)
         return cls(requests_tls, authenticator, secret_retriever)
 
 
 class AuthenticatorFactory:
-
     @classmethod
     def create_authenticator(cls, config, vault_url, gw_user=None, gw_password=None):
         auth_method = config.getienum(
-            'hashicorp',
-            'authentication_method',
-            ('ldap', 'userpass', 'approle'),
-            required=True)
-        logger.debug('Authenticating to vault with method: {}'.format(auth_method))
-        if auth_method in ('ldap', 'userpass'):
-            username = cls.credential_from_config(config, 'username') or gw_user
-            password = cls.credential_from_config(config, 'password') or gw_password
+            "hashicorp", "authentication_method", ("ldap", "userpass", "approle"), required=True
+        )
+        logger.debug("Authenticating to vault with method: {}".format(auth_method))
+        if auth_method in ("ldap", "userpass"):
+            username = cls.credential_from_config(config, "username") or gw_user
+            password = cls.credential_from_config(config, "password") or gw_password
             if username and password:
                 authenticator = PasswordTypeAuthenticator(vault_url, username, password, auth_method)
             else:
                 raise CredentialsCannotBeDeterminedException(
-                    'Cannot determine credentials for Vault',
-                    variables={'username': username, 'password': '<password>' if password else 'N/A'}
+                    "Cannot determine credentials for Vault",
+                    variables={"username": username, "password": "<password>" if password else "N/A"},
                 )
-        elif auth_method == 'approle':
-            role = config.get('approle-authentication', 'role', required=True)
-            vault_token = config.get('approle-authentication', 'vault_token')
+        elif auth_method == "approle":
+            role = config.get("approle-authentication", "role", required=True)
+            vault_token = config.get("approle-authentication", "vault_token")
             authenticator = AppRoleAuthenticator(vault_url, vault_token, role)
         else:
-            raise InvalidConfigurationError('No valid authentication method can be determined based on config')
+            raise InvalidConfigurationError("No valid authentication method can be determined based on config")
         return authenticator
 
     @staticmethod
     def credential_from_config(config, option_name):
         return (
-            config.get('hashicorp', option_name, required=True)
-            if config.getienum('hashicorp', 'use_credential', ('explicit', 'gateway'), default='gateway') == 'explicit'
+            config.get("hashicorp", option_name, required=True)
+            if config.getienum("hashicorp", "use_credential", ("explicit", "gateway"), default="gateway") == "explicit"
             else None
         )
 
 
 class SecretRetriever(abc.ABC):
-
     @abc.abstractmethod
     def retrieve_secret(self, session, key, client_token):
         raise NotImplementedError
 
 
 class KVEngineV1SecretRetriever(SecretRetriever):
-
     def __init__(self, vault_url, secrets_path):
         self.__vault_url = vault_url
         self.__secrets_path = secrets_path
 
     def retrieve_secret(self, session, key, client_token):
-        secret = _extract_data_from_endpoint(session,
-                                             endpoint_url=self.__vault_url + '/v1/' + self.__secrets_path,
-                                             data_path='data.' + key,
-                                             token=client_token,
-                                             method='get')
+        secret = _extract_data_from_endpoint(
+            session,
+            endpoint_url=self.__vault_url + "/v1/" + self.__secrets_path,
+            data_path="data." + key,
+            token=client_token,
+            method="get",
+        )
         return secret
 
 
 class Authenticator(abc.ABC):
-
     @abc.abstractmethod
     def authentication_backend(self):
         raise NotImplementedError
@@ -187,7 +181,6 @@ class Authenticator(abc.ABC):
 
 
 class AppRoleAuthenticator(Authenticator):
-
     def __init__(self, vault_url, vault_token, role):
         self.__vault_url = vault_url
         self.__vault_token = vault_token
@@ -195,28 +188,31 @@ class AppRoleAuthenticator(Authenticator):
 
     @property
     def authentication_backend(self):
-        return 'approle'
+        return "approle"
 
     def authenticate(self, session):
         role_id = _extract_data_from_endpoint(
             session,
-            endpoint_url=self.__vault_url + '/v1/auth/approle/role/' + self.__role + '/role-id',
-            data_path='data.role_id',
+            endpoint_url=self.__vault_url + "/v1/auth/approle/role/" + self.__role + "/role-id",
+            data_path="data.role_id",
             token=self.__vault_token,
-            method='get')
+            method="get",
+        )
         secret_id = _extract_data_from_endpoint(
             session,
-            endpoint_url=self.__vault_url + '/v1/auth/approle/role/' + self.__role + '/secret-id',
-            data_path='data.secret_id',
+            endpoint_url=self.__vault_url + "/v1/auth/approle/role/" + self.__role + "/secret-id",
+            data_path="data.secret_id",
             token=self.__vault_token,
-            method='post')
+            method="post",
+        )
         client_token = _extract_data_from_endpoint(
             session,
-            endpoint_url=self.__vault_url + '/v1/auth/approle/login',
-            data_path='auth.client_token',
+            endpoint_url=self.__vault_url + "/v1/auth/approle/login",
+            data_path="auth.client_token",
             token=self.__vault_token,
-            method='post',
-            data={'role_id': role_id, 'secret_id': secret_id})
+            method="post",
+            data={"role_id": role_id, "secret_id": secret_id},
+        )
         return client_token
 
 
@@ -232,18 +228,18 @@ class PasswordTypeAuthenticator(Authenticator):
         return self.__auth_backend
 
     def __calculate_endpoint(self):
-        return self.__vault_url + '/v1/auth/' + self.__auth_backend + '/login/' + self.__username
+        return self.__vault_url + "/v1/auth/" + self.__auth_backend + "/login/" + self.__username
 
     def authenticate(self, session):
-        logger.debug('Performing Userpass authentication for user {}'.format(self.__username))
+        logger.debug("Performing Userpass authentication for user {}".format(self.__username))
         endpoint = self.__calculate_endpoint()
         client_token = _extract_data_from_endpoint(
             session,
             endpoint_url=endpoint,
-            data_path='auth.client_token',
+            data_path="auth.client_token",
             token=None,
-            method='post',
-            data={'password': self.__password}
+            method="post",
+            data={"password": self.__password},
         )
         return client_token
 
@@ -251,32 +247,39 @@ class PasswordTypeAuthenticator(Authenticator):
 def _extract_data_from_endpoint(session, endpoint_url, data_path, token, method, data=None):
     response = _invoke_http_method(session, endpoint_url, token, method, data)
     if response.ok:
+
         def follow_path(d, path):
             return d if not path else follow_path(d[path[0]], path[1:])
+
         # not logging the response as it may contain sensitive data
-        logger.debug('Got 200 OK response from endpoint: {}'.format(endpoint_url))
+        logger.debug("Got 200 OK response from endpoint: {}".format(endpoint_url))
         try:
-            return follow_path(json.loads(response.text), data_path.split('.'))
+            return follow_path(json.loads(response.text), data_path.split("."))
         except (KeyError, TypeError):
-            raise VaultException('Vault response did not contain the information', dict(data_path=data_path))
+            raise VaultException("Vault response did not contain the information", dict(data_path=data_path))
     else:
-        raise VaultException('Vault response status not ok', dict(
-            status_code=response.status_code,
-            status_text=responses.get(response.status_code, "UNKNOWN"),
-            endpoint_url=endpoint_url,
-            raw_response=response.text
-        ))
+        raise VaultException(
+            "Vault response status not ok",
+            dict(
+                status_code=response.status_code,
+                status_text=responses.get(response.status_code, "UNKNOWN"),
+                endpoint_url=endpoint_url,
+                raw_response=response.text,
+            ),
+        )
 
 
 def _invoke_http_method(session, endpoint_url, token, method, data=None):
     if token:
-        headers = {'X-Vault-Token': token}
+        headers = {"X-Vault-Token": token}
     else:
         headers = {}
-    logger.debug('Sending http request to Hashicorp Vault, endpoint_url="{}", method="{}"'
-                 .format(endpoint_url, method))
+    logger.debug('Sending http request to Hashicorp Vault, endpoint_url="{}", method="{}"'.format(endpoint_url, method))
     try:
-        return session.get(endpoint_url, headers=headers) if method == 'get' \
+        return (
+            session.get(endpoint_url, headers=headers)
+            if method == "get"
             else session.post(endpoint_url, headers=headers, data=json.dumps(data) if data else None)
+        )
     except requests.exceptions.ConnectionError as exc:
-        raise VaultException('Connection error: {}'.format(exc))
+        raise VaultException("Connection error: {}".format(exc))

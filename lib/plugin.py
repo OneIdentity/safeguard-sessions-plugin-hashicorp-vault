@@ -29,7 +29,7 @@ from .client import Client
 class Plugin(CredentialStorePlugin):
     SECRET_TYPE_TO_FIELD = {
         "password": dict(option="password_field", default="password"),
-        "key": dict(option="key_field", default="key")
+        "key": dict(option="key_field", default="key"),
     }
 
     def __init__(self, configuration):
@@ -42,26 +42,28 @@ class Plugin(CredentialStorePlugin):
             )
 
             if secret_path is None or secret_field is None:
-                return {'passwords': []}
+                return {"passwords": []}
 
-            vault_client = Client.create_client(self.plugin_configuration,
-                                                self.connection.gateway_username,
-                                                self.connection.gateway_password,
-                                                secret_path)
+            vault_client = Client.create_client(
+                self.plugin_configuration,
+                self.connection.gateway_username,
+                self.connection.gateway_password,
+                secret_path,
+            )
             password = vault_client.get_secret(secret_field)
-            return {'passwords': [password] if password else []}
+            return {"passwords": [password] if password else []}
         except PluginSDKRuntimeError as ex:
             self.logger.error("Error retrieving passwords: {}".format(ex))
             return None
 
     def do_get_private_key_list(self):
         def determine_keytype(key):
-            if key.startswith('-----BEGIN RSA PRIVATE KEY-----'):
-                return 'ssh-rsa'
-            elif key.startswith('-----BEGIN DSA PRIVATE KEY-----'):
-                return 'ssh-dss'
+            if key.startswith("-----BEGIN RSA PRIVATE KEY-----"):
+                return "ssh-rsa"
+            elif key.startswith("-----BEGIN DSA PRIVATE KEY-----"):
+                return "ssh-dss"
             else:
-                self.logger.error('Unsupported key type')
+                self.logger.error("Unsupported key type")
 
         def get_supported_key(key):
             return list(filter(lambda key_pair: key_pair[0], [(determine_keytype(key), key)]))
@@ -72,37 +74,37 @@ class Plugin(CredentialStorePlugin):
             )
 
             if secret_path is None or secret_field is None:
-                return {'private_keys': []}
+                return {"private_keys": []}
 
-            vault_client = Client.create_client(self.plugin_configuration,
-                                                self.connection.gateway_username,
-                                                self.connection.gateway_password,
-                                                secret_path)
+            vault_client = Client.create_client(
+                self.plugin_configuration,
+                self.connection.gateway_username,
+                self.connection.gateway_password,
+                secret_path,
+            )
             key = vault_client.get_secret(secret_field)
-            return {'private_keys': get_supported_key(key) if key else []}
+            return {"private_keys": get_supported_key(key) if key else []}
         except PluginSDKRuntimeError as ex:
             self.logger.error("Error retrieving private keys: {}".format(ex))
             return None
 
     @property
     def user_defined_path(self):
-        return self.session_cookie.get('questions', {}).get('vp')
+        return self.session_cookie.get("questions", {}).get("vp")
 
     def secret_path_and_field(self, account, asset, secret_type, user_defined_path):
         default_field = self.plugin_configuration.get(
-            'engine-kv-v1',
+            "engine-kv-v1",
             self.SECRET_TYPE_TO_FIELD[secret_type]["option"],
-            default=self.SECRET_TYPE_TO_FIELD[secret_type]["default"]
+            default=self.SECRET_TYPE_TO_FIELD[secret_type]["default"],
         )
 
         secret_path, secret_field = (
-            self.parse_user_defined_path_and_field(user_defined_path, default_field, secret_type) if user_defined_path
+            self.parse_user_defined_path_and_field(user_defined_path, default_field, secret_type)
+            if user_defined_path
             else (
-                '{}/{}'.format(
-                    self.plugin_configuration.get('engine-kv-v1', 'secrets_path', required=True),
-                    account
-                ),
-                default_field
+                "{}/{}".format(self.plugin_configuration.get("engine-kv-v1", "secrets_path", required=True), account),
+                default_field,
             )
         )
 
@@ -113,9 +115,9 @@ class Plugin(CredentialStorePlugin):
         path, schema = self.get_schema(path, secret_type)
 
         if secret_type != schema:
-            self.logger.debug("User defined secret type is not equal to system requested type {}!={}".format(
-                schema, secret_type
-            ))
+            self.logger.debug(
+                "User defined secret type is not equal to system requested type {}!={}".format(schema, secret_type)
+            )
             return None, None
 
         # replace // with URL encoded version
@@ -138,10 +140,7 @@ class Plugin(CredentialStorePlugin):
         elif "key".startswith(match.group(1)):
             schema = "key"
         else:
-            self.logger.warning("Invalid schema in user defined path: path={} schema={}".format(
-                path,
-                match.group(1)
-            ))
+            self.logger.warning("Invalid schema in user defined path: path={} schema={}".format(path, match.group(1)))
             return path, schema
 
         return match.group(2), schema
