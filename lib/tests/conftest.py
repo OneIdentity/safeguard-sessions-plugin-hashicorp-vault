@@ -25,62 +25,63 @@ import pytest
 
 @pytest.fixture
 def hc_address(site_parameters):
-    return site_parameters['address']
+    return site_parameters["address"]
 
 
 @pytest.fixture
 def hc_port(site_parameters):
-    return site_parameters['port']
+    return site_parameters["port"]
 
 
 @pytest.fixture
 def hc_role(site_parameters):
-    return site_parameters['role']
+    return site_parameters["role"]
 
 
 @pytest.fixture
 def hc_vault_token(site_parameters):
-    return site_parameters['vault_token']
+    return site_parameters["vault_token"]
 
 
 @pytest.fixture
 def hc_secret_path(site_parameters):
-    return site_parameters['secrets_path']
+    return site_parameters["secrets_path"]
 
 
 @pytest.fixture
 def hc_account(site_parameters):
-    return site_parameters['account']
+    return site_parameters["account"]
 
 
 @pytest.fixture
 def hc_account_password(site_parameters):
-    return site_parameters['account_password']
+    return site_parameters["account_password"]
 
 
 @pytest.fixture
 def hc_wrong_account(site_parameters):
-    return site_parameters['wrong_account']
+    return site_parameters["wrong_account"]
 
 
 @pytest.fixture
 def hc_account_with_private_key(site_parameters):
-    return site_parameters['account_with_private_key']
+    return site_parameters["account_with_private_key"]
 
 
 @pytest.fixture()
 def hc_account_private_key(site_parameters):
-    return site_parameters['account_private_key']
+    return site_parameters["account_private_key"]
 
 
 @pytest.fixture()
 def hc_account_with_unsupported_key(site_parameters):
-    return site_parameters['account_with_unsupported_key']
+    return site_parameters["account_with_unsupported_key"]
 
 
 @pytest.fixture
 def hc_config_approle_auth_engine_kv_v1(site_parameters):
-    yield dedent("""
+    yield dedent(
+        """
         [hashicorp]
         address = {address}
         port = {port}
@@ -93,26 +94,28 @@ def hc_config_approle_auth_engine_kv_v1(site_parameters):
         [engine-kv-v1]
         secrets_path = {secrets_path}
     """.format(
-        address=site_parameters['address'],
-        port=site_parameters['port'],
-        role=site_parameters['role'],
-        vault_token=site_parameters['vault_token'],
-        secrets_path=site_parameters['secrets_path'],
-    ))
+            address=site_parameters["address"],
+            port=site_parameters["port"],
+            role=site_parameters["role"],
+            vault_token=site_parameters["vault_token"],
+            secrets_path=site_parameters["secrets_path"],
+        )
+    )
 
 
 @pytest.fixture
 def make_hc_config(site_parameters):
-    def _make_config(auth_method, secrets_path=site_parameters['secrets_path'], extra_conf=''):
+    def _make_config(auth_method, secrets_path=site_parameters["secrets_path"], extra_conf=""):
         username = password = None
-        if auth_method == 'ldap':
-            username = site_parameters['ldap_username']
-            password = site_parameters['ldap_password']
-        elif auth_method == 'userpass':
-            username = site_parameters['username']
-            password = site_parameters['password']
+        if auth_method == "ldap":
+            username = site_parameters["ldap_username"]
+            password = site_parameters["ldap_password"]
+        elif auth_method == "userpass":
+            username = site_parameters["username"]
+            password = site_parameters["password"]
 
-        return dedent("""
+        return dedent(
+            """
             [logging]
             log_level=debug
 
@@ -132,14 +135,16 @@ def make_hc_config(site_parameters):
             secrets_path = {secrets_path}
             {extra_conf}
         """.format(
-            address=site_parameters['address'],
-            port=site_parameters['port'],
-            role=site_parameters['role'],
-            vault_token=site_parameters['vault_token'],
-            secrets_path=secrets_path,
-            username=username,
-            password=password,
-            auth_method=auth_method,
-            extra_conf=extra_conf
-        ))
+                address=site_parameters["address"],
+                port=site_parameters["port"],
+                role=site_parameters["role"],
+                vault_token=site_parameters["vault_token"],
+                secrets_path=secrets_path,
+                username=username,
+                password=password,
+                auth_method=auth_method,
+                extra_conf=extra_conf,
+            )
+        )
+
     return _make_config
