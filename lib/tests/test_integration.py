@@ -25,47 +25,51 @@ from safeguard.sessions.plugin_impl.test_utils.plugin import assert_plugin_hook_
 
 
 @mark.parametrize("auth_method", ("approle", "ldap", "userpass"))
-def test_secret_retrieving(auth_method, hc_account, hc_account_password, make_hc_config):
+def test_secret_retrieving(auth_method, hc_account, hc_account_password, make_hc_config, generate_params):
     plugin = Plugin(make_hc_config(auth_method))
 
-    result = plugin.get_password_list(cookie={}, session_cookie={}, target_username=hc_account, protocol="SSH")
+    result = plugin.get_password_list(**generate_params(
+        cookie={},
+        session_cookie={},
+        server_username=hc_account,
+        protocol="SSH"
+    ))
 
     assert_plugin_hook_result(result, {"passwords": [hc_account_password]})
 
 
-def test_get_private_key_list(make_hc_config, hc_account_with_private_key, hc_account_private_key):
+def test_get_private_key_list(make_hc_config, hc_account_with_private_key, hc_account_private_key, generate_params):
     plugin = Plugin(make_hc_config("approle"))
-    result = plugin.get_private_key_list(
-        cookie={}, session_cookie={}, target_username=hc_account_with_private_key, protocol="SSH"
-    )
+    result = plugin.get_private_key_list(**generate_params(server_username=hc_account_with_private_key, protocol="SSH"))
 
     assert_plugin_hook_result(result, {"private_keys": [("ssh-rsa", hc_account_private_key)]})
 
 
-def test_get_private_key_list_for_user_with_unsupported_private_key(make_hc_config, hc_account_with_unsupported_key):
+def test_get_private_key_list_for_user_with_unsupported_private_key(make_hc_config,
+                                                                    hc_account_with_unsupported_key, generate_params):
     config = make_hc_config("approle", extra_conf="key_field=unsupported_key")
     plugin = Plugin(config)
-    result = plugin.get_private_key_list(
-        cookie={}, session_cookie={}, target_username=hc_account_with_unsupported_key, protocol="SSH"
-    )
+    result = plugin.get_private_key_list(**generate_params(
+        server_username=hc_account_with_unsupported_key, protocol="SSH"
+    ))
 
     assert_plugin_hook_result(result, {"private_keys": []})
 
 
-def test_get_private_key_list_with_non_existent_key_field(make_hc_config, hc_account, caplog):
+def test_get_private_key_list_with_non_existent_key_field(make_hc_config, hc_account, caplog, generate_params):
     config = make_hc_config("approle", extra_conf="key_field=does_not_exist")
     plugin = Plugin(config)
-    result = plugin.get_private_key_list(cookie={}, session_cookie={}, target_username=hc_account, protocol="SSH")
+    result = plugin.get_private_key_list(**generate_params(server_username=hc_account, protocol="SSH"))
 
     assert_plugin_hook_result(result, {"private_keys": []})
 
     assert "Error retrieving private keys" in caplog.text
 
 
-def test_get_password_list_with_wrong_path(make_hc_config, hc_account, caplog):
+def test_get_password_list_with_wrong_path(make_hc_config, hc_account, caplog, generate_params):
     plugin = Plugin(make_hc_config("approle", secrets_path="does/not/exist"))
 
-    result = plugin.get_password_list(cookie={}, session_cookie={}, target_username=hc_account, protocol="SSH")
+    result = plugin.get_password_list(**generate_params(server_username=hc_account, protocol="SSH"))
 
     assert_plugin_hook_result(result, {"passwords": []})
 

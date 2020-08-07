@@ -33,7 +33,7 @@ class Plugin(CredentialStorePlugin):
     }
 
     def __init__(self, configuration):
-        super().__init__(configuration)
+        super().__init__(configuration, configuration_section="hashicorp")
 
     def do_get_password_list(self):
         try:
@@ -46,8 +46,8 @@ class Plugin(CredentialStorePlugin):
 
             vault_client = Client.create_client(
                 self.plugin_configuration,
-                self.connection.gateway_username,
-                self.connection.gateway_password,
+                self.authentication_username,
+                self.authentication_password,
                 secret_path,
             )
             password = vault_client.get_secret(secret_field)
@@ -57,16 +57,8 @@ class Plugin(CredentialStorePlugin):
             return None
 
     def do_get_private_key_list(self):
-        def determine_keytype(key):
-            if key.startswith("-----BEGIN RSA PRIVATE KEY-----"):
-                return "ssh-rsa"
-            elif key.startswith("-----BEGIN DSA PRIVATE KEY-----"):
-                return "ssh-dss"
-            else:
-                self.logger.error("Unsupported key type")
-
         def get_supported_key(key):
-            return list(filter(lambda key_pair: key_pair[0], [(determine_keytype(key), key)]))
+            return list(filter(lambda key_pair: key_pair[0], [(self.determine_key_type(key), key)]))
 
         try:
             secret_path, secret_field = self.secret_path_and_field(

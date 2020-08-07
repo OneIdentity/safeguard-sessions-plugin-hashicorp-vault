@@ -30,6 +30,7 @@ from contextlib import contextmanager
 
 from safeguard.sessions.plugin.logging import configure as log_configure
 from safeguard.sessions.plugin.plugin_configuration import PluginConfiguration
+from safeguard.sessions.plugin.endpoint_extractor import EndpointException
 
 from ..client import (
     Client,
@@ -38,7 +39,6 @@ from ..client import (
     AppRoleAuthenticator,
     PasswordTypeAuthenticator,
     KVEngineV1SecretRetriever,
-    CredentialsCannotBeDeterminedException,
 )
 
 Response = namedtuple("Response", "ok text status_code")
@@ -222,6 +222,25 @@ PERFORMANCE_STANDBY_HEALTH_RESPONSE = Response(
     status_code=473,
 )
 
+VAULT_DOWN = Response(
+    text=json.dumps(
+        {
+            "initialized": True,
+            "sealed": False,
+            "standby": False,
+            "performance_standby": False,
+            "replication_performance_mode": "disabled",
+            "replication_dr_mode": "disabled",
+            "server_time_utc": 1568365137,
+            "version": "1.1.2",
+            "cluster_name": "vault-cluster-eba4a26a",
+            "cluster_id": "df107efd-43e2-b4a0-a0ac-939e3cead978",
+        }
+    ),
+    ok=False,
+    status_code=401,
+)
+
 
 @contextmanager
 def _open_session():
@@ -266,7 +285,7 @@ def test_client_can_be_instantiated_with_config(_requests_tls, mocker):
     mocker.spy(Client, "__init__")
     mocker.spy(AppRoleAuthenticator, "__init__")
     mocker.spy(KVEngineV1SecretRetriever, "__init__")
-    client = Client.create_client(config)
+    client = Client.create_client(config, "username", "pw")
     client.__init__.assert_called_with(client, client.session_factory, client.authenticator, client.secret_retriever)
     client.authenticator.__init__.assert_called_with(client.authenticator, URL, VAULT_TOKEN, ROLE)
     client.secret_retriever.__init__.assert_called_with(client.secret_retriever, URL, SECRETS_PATH)
@@ -282,7 +301,7 @@ def test_client_factory_uses_HTTPS_when_TLS_enabled(_requests_tls, mocker):
     )
     mocker.spy(AppRoleAuthenticator, "__init__")
     mocker.spy(KVEngineV1SecretRetriever, "__init__")
-    client = Client.create_client(config)
+    client = Client.create_client(config, "myuser", "mypassword")
     client.authenticator.__init__.assert_called_with(client.authenticator, https_url, VAULT_TOKEN, ROLE)
     client.secret_retriever.__init__.assert_called_with(client.secret_retriever, https_url, SECRETS_PATH)
 
@@ -292,7 +311,7 @@ def test_client_factory_raises_exception_if_secrets_engine_cannot_be_determined(
     SESSION.get.side_effect = GET_RESPONSES
     config = create_config_and_set_loglevel(hashicorp_vault_config() + HASHICORP_VAULT_APPROLE_AUTH_CONFIG)
     with raises(InvalidConfigurationError):
-        Client.create_client(config)
+        Client.create_client(config, "myuser", "mypassword")
 
 
 def test_get_secret_by_key():
@@ -300,12 +319,12 @@ def test_get_secret_by_key():
     SESSION.get.side_effect = GET_RESPONSES[1:]
     expected_headers = {"X-Vault-Token": VAULT_TOKEN}
     expected_calls_to_get = [
-        call(ROLE_ID_ENDPOINT, headers=expected_headers),
-        call(SECRETS_ENDPOINT, headers={"X-Vault-Token": CLIENT_TOKEN}),
+        call(ROLE_ID_ENDPOINT, headers=expected_headers, params=None),
+        call(SECRETS_ENDPOINT, headers={"X-Vault-Token": CLIENT_TOKEN}, params=None),
     ]
     expected_calls_to_post = [
-        call(SECRET_ID_ENDPOINT, headers=expected_headers, data=None),
-        call(LOGIN_ENDPOINT, headers=expected_headers, data=json.dumps({"role_id": ROLE_ID, "secret_id": SECRET_ID})),
+        call(SECRET_ID_ENDPOINT, headers=expected_headers, data=None, params=None),
+        call(LOGIN_ENDPOINT, headers=expected_headers, data=json.dumps({"role_id": ROLE_ID, "secret_id": SECRET_ID}), params=None),
     ]
 
     client = Client(REQUESTS_TLS, AUTHENTICATOR, SECRET_RETRIEVER)
@@ -320,25 +339,24 @@ def test_error_occurs_when_getting_secret():
     SESSION.post.side_effect = POST_RESPONSES
     SESSION.get.side_effect = [GET_RESPONSES[1], ERROR_RESPONSE_NOT_FOUND]
     client = Client(REQUESTS_TLS, AUTHENTICATOR, SECRET_RETRIEVER)
-    with raises(VaultException) as exc:
+    with raises(EndpointException) as exc:
         client.get_secret(key=SECRET_KEY)
-    assert exc.match("Vault response status not ok.*Not Found")
+    assert exc.match("Endpoint responded with NOK;")
 
 
 def test_error_occurs_when_extracting_secret():
     SESSION.post.side_effect = POST_RESPONSES
     SESSION.get.side_effect = [GET_RESPONSES[1], ERROR_RESPONSE_NO_SUCH_FIELD]
     client = Client(REQUESTS_TLS, AUTHENTICATOR, SECRET_RETRIEVER)
-    with raises(VaultException) as exc:
+    with raises(EndpointException) as exc:
         client.get_secret(key=SECRET_KEY)
-    assert exc.match("Vault response did not contain the information")
+    assert exc.match("Endpoint \\(http://vault-address:1337/v1/kv/secret\\) response did not contain the information;")
 
 
 def test_cannot_connect_to_vault():
-    SESSION.get.side_effect = [ConnectionError()]
-    client = Client(REQUESTS_TLS, AUTHENTICATOR, SECRET_RETRIEVER)
+    SESSION.get.side_effect = [VAULT_DOWN]
     with raises(VaultException):
-        client.get_secret(key=SECRET_KEY)
+        Client._determine_vault_to_use(REQUESTS_TLS, ["wrong.address"], "1234")
 
 
 def data_provider():
@@ -356,39 +374,9 @@ def test_client_uses_the_appropriate_authenticator(_requests_tls, auth_method, i
         + HASHICORP_VAULT_APPROLE_AUTH_CONFIG
         + HASHICORP_VAULT_KV_V1_CONFIG
     )
-    client = Client.create_client(config)
+    client = Client.create_client(config, "myuser", "mypassword")
     assert isinstance(client.authenticator, instance)
     assert client.authenticator.authentication_backend == auth_method
-
-
-def authenticator_password_cases():
-    yield (
-        "use_credential=explicit\nusername=user\npassword=pass",
-        {"gw_user": None, "gw_password": None},
-        ("user", "pass", "ldap"),
-    )
-    yield (
-        "use_credential=gateway",
-        {"gw_user": "my_gw_user", "gw_password": "my_gw_password"},
-        ("my_gw_user", "my_gw_password", "ldap"),
-    )
-
-
-@pytest.mark.parametrize("extra_parts, users, expected", authenticator_password_cases())
-@patch("safeguard.sessions.plugin.requests_tls.RequestsTLS", return_value=REQUESTS_TLS)
-def test_authenticator_calculates_username_and_password_according_to_config(
-    _requests_tls, mocker, extra_parts, users, expected
-):
-    SESSION.get.side_effect = GET_RESPONSES
-    vault_address = "https://{}:{}".format(ADDRESS, PORT)
-    config = create_config_and_set_loglevel(
-        hashicorp_vault_config(auth_method="ldap", extra_parts=extra_parts)
-        + HASHICORP_VAULT_APPROLE_AUTH_CONFIG
-        + HASHICORP_VAULT_KV_V1_CONFIG
-    )
-    mocker.spy(PasswordTypeAuthenticator, "__init__")
-    client = Client.create_client(config, **users)
-    client.authenticator.__init__.assert_called_with(client.authenticator, vault_address, *expected)
 
 
 @patch("safeguard.sessions.plugin.requests_tls.RequestsTLS", return_value=REQUESTS_TLS)
@@ -404,12 +392,12 @@ def test_raises_vault_error_when_cannot_make_connection_to_vault(_requests_tls):
         + HASHICORP_VAULT_KV_V1_CONFIG
     )
     with raises(VaultException):
-        Client.create_client(config)
+        Client.create_client(config, "myuser", "mypassword")
 
 
 @patch("safeguard.sessions.plugin.requests_tls.RequestsTLS", return_value=REQUESTS_TLS)
 def test_uses_first_available_vault_address_when_more_configured(_requests_tls, mocker):
-    SESSION.get.side_effect = [ConnectionError(), GET_RESPONSES[0]]
+    SESSION.get.side_effect = [VAULT_DOWN, GET_RESPONSES[0]]
     config = create_config_and_set_loglevel(
         hashicorp_vault_config(
             address="vault.is.down,test.vault", auth_method="ldap", extra_parts="use_credential=gateway"
@@ -426,7 +414,7 @@ def test_uses_first_available_vault_address_when_more_configured(_requests_tls, 
 
 @patch("safeguard.sessions.plugin.requests_tls.RequestsTLS", return_value=REQUESTS_TLS)
 def test_uses_first_available_vault_address_even_if_performance_standby(_requests_tls, mocker):
-    SESSION.get.side_effect = [ConnectionError(), PERFORMANCE_STANDBY_HEALTH_RESPONSE]
+    SESSION.get.side_effect = [VAULT_DOWN, PERFORMANCE_STANDBY_HEALTH_RESPONSE]
     config = create_config_and_set_loglevel(
         hashicorp_vault_config(
             address="vault.is.down,test.vault", auth_method="ldap", extra_parts="use_credential=gateway"
@@ -439,18 +427,6 @@ def test_uses_first_available_vault_address_even_if_performance_standby(_request
     client.authenticator.__init__.assert_called_with(
         client.authenticator, "https://test.vault:{}".format(PORT), "myuser", "mypassword", "ldap"
     )
-
-
-@patch("safeguard.sessions.plugin.requests_tls.RequestsTLS", return_value=REQUESTS_TLS)
-def test_raises_exception_when_cannot_determine_vault_credentials(_requests_tls):
-    SESSION.get.side_effect = GET_RESPONSES
-    config = create_config_and_set_loglevel(
-        hashicorp_vault_config(auth_method="ldap", extra_parts="use_credential=gateway")
-        + HASHICORP_VAULT_APPROLE_AUTH_CONFIG
-        + HASHICORP_VAULT_KV_V1_CONFIG
-    )
-    with raises(CredentialsCannotBeDeterminedException):
-        Client.create_client(config, gw_user="my_gw_user")
 
 
 def create_config_and_set_loglevel(config_str):
