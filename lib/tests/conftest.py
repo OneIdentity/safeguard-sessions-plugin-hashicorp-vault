@@ -148,3 +148,26 @@ def make_hc_config(site_parameters):
         )
 
     return _make_config
+
+
+@pytest.fixture
+def generate_params():
+    def _params(cookie={}, session_cookie={}, server_username=None, protocol=None):
+        return {
+            "cookie": cookie,
+            "session_cookie": session_cookie,
+            "session_id": "example-1",
+            "client_ip": "1.1.1.1",
+            "client_hostname": None,
+            "gateway_domain": None,
+            "gateway_username": "wsmith",
+            "gateway_password": "",
+            "gateway_groups": None,
+            "server_username": server_username,
+            "server_ip": "1.2.3.4",
+            "server_port": 22,
+            "server_hostname": None,
+            "server_domain": None,
+            "protocol": protocol,
+        }
+    return _params

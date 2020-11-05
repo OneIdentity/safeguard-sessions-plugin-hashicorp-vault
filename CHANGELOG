@@ -1,3 +1,7 @@
+2.0.0 2020-08-05
+
+Use new credential store base class features to make plugin code easier to maintain
+
 1.1.2 2019-11-15
 
 Give use_credential parameter a default value, as written in the default.cfg
